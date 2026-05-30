@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Themeable neutral tokens as raw RGB channels (see tailwind.config.ts).
+     Brand blue + semantic green/red/yellow are fixed and live in the config. */
+  :root {
+    color-scheme: light;
+    --canvas: 255 255 255; /* card / input surface */
+    --surface-soft: 247 247 247; /* page background */
+    --surface-strong: 238 240 243; /* inputs, soft fills */
+    --hairline: 222 225 230;
+    --hairline-soft: 238 240 243;
+    --ink: 10 11 13; /* primary text */
+    --body: 91 97 110;
+    --muted: 124 130 138;
+    --muted-soft: 168 172 179;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --canvas: 22 24 28; /* #16181c — elevated cards */
+    --surface-soft: 10 11 13; /* #0a0b0d — darkest page floor */
+    --surface-strong: 31 34 40; /* #1f2228 */
+    --hairline: 42 45 52; /* #2a2d34 */
+    --hairline-soft: 31 34 40;
+    --ink: 255 255 255;
+    --body: 168 172 179;
+    --muted: 139 144 153;
+    --muted-soft: 107 112 121;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "ss01", "cv01";
+  }
+
+  /* Display headings carry slight negative tracking (design.md typography). */
+  h1,
+  h2,
+  h3 {
+    @apply tracking-display text-ink;
+  }
+
+  /* Tabular numerals everywhere numbers matter. */
+  .tabular {
+    @apply font-mono tabular-nums;
+  }
+}
+
+@layer components {
+  /* Reusable focus ring matching the single brand voltage. */
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1;
+  }
+}

@@ -1,0 +1,99 @@
+// Photobooth Cashier — Prisma schema
+// See CLAUDE.md §5 and SRS §6 for the source spec.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  USER
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  DONE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+}
+
+enum PricingType {
+  BIASA // single flat price per print
+  PISAH // first print at pricePerPrint, same-photo copies at copyPrice
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  password  String // bcrypt hash (rounds = 12)
+  role      Role     @default(USER)
+
+  // Login-lockout state (REQ-AUTH-01: 5 failed attempts -> lock 15 min)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crewEvents   EventCrew[]
+  transactions Transaction[]
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  name          String
+  location      String
+  eventDate     DateTime
+  startTime     DateTime? // optional precise start (WIB)
+  endTime       DateTime? // optional precise end (WIB)
+  pricingType   PricingType @default(BIASA)
+  pricePerPrint Int // base / first-print price (Rp)
+  copyPrice     Int? // per same-photo copy price (Rp); used when pricingType = PISAH
+  status        EventStatus @default(UPCOMING)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  crew         EventCrew[]
+  transactions Transaction[]
+}
+
+model EventCrew {
+  id       String  @id @default(cuid())
+  event    Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId  String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  attended Boolean @default(false)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model Transaction {
+  id            String        @id @default(cuid())
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId       String
+  // Who input it. Nullable so historical transactions survive user deletion (SRS §6.2).
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId        String?
+  printCount    Int
+  paymentMethod PaymentMethod
+  total         Int // pricePerPrint × printCount (in Rp), computed server-side
+  note          String?
+  createdAt     DateTime      @default(now())
+
+  @@index([eventId, createdAt])
+  @@index([userId])
+}

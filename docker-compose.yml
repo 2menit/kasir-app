@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: photobooth-db
+    restart: unless-stopped
+    # Values are read from the project .env file (Docker Compose interpolates
+    # ${VAR} automatically). Defaults after ":-" keep it runnable without .env.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-photobooth}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - photobooth_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # $$ escapes to a literal $ so the container shell expands the var.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  photobooth_pgdata:
