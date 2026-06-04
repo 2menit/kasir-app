@@ -76,6 +76,10 @@ const eventBase = {
   pricePerPrint: priceField("Harga"),
   // Required only when pricingType = PISAH (enforced by refine below).
   copyPrice: z.union([priceField("Harga salinan"), z.null()]).optional(),
+  // Optional per-event add-on (e.g. gantungan kunci)
+  addOnEnabled: z.boolean().optional().default(false),
+  addOnName: z.string().trim().max(50).optional().or(z.literal("")),
+  addOnPrice: z.union([priceField("Harga add-on"), z.null()]).optional(),
   notes: z.string().trim().max(1000).optional().or(z.literal("")),
   crewIds: z.array(z.string()).optional().default([]),
 };
@@ -86,6 +90,9 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
     const v = val as {
       pricingType?: string;
       copyPrice?: number | null;
+      addOnEnabled?: boolean;
+      addOnName?: string;
+      addOnPrice?: number | null;
       startTime?: string;
       endTime?: string;
     };
@@ -95,6 +102,22 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
         path: ["copyPrice"],
         message: "Harga salinan wajib diisi untuk skema Pisah",
       });
+    }
+    if (v.addOnEnabled) {
+      if (!v.addOnName || v.addOnName.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["addOnName"],
+          message: "Nama add-on wajib diisi",
+        });
+      }
+      if (v.addOnPrice == null || v.addOnPrice <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["addOnPrice"],
+          message: "Harga add-on wajib diisi",
+        });
+      }
     }
     if (v.startTime && v.endTime && v.endTime <= v.startTime) {
       ctx.addIssue({
@@ -128,6 +151,14 @@ export const selfAttendanceSchema = z.object({
 });
 
 // ── Transactions ─────────────────────────────────────────────────────────────
+const addOnQty = z
+  .coerce.number()
+  .int("Jumlah add-on harus bilangan bulat")
+  .min(0)
+  .max(999)
+  .optional()
+  .default(0);
+
 export const createTransactionSchema = z.object({
   eventId: z.string().min(1, "Event wajib diisi"),
   printCount: z
@@ -136,12 +167,14 @@ export const createTransactionSchema = z.object({
     .min(1, "Minimal 1 print")
     .max(999, "Maksimal 999 print"),
   paymentMethod: PaymentMethodEnum,
+  addOnQty,
   note: z.string().trim().max(500, "Catatan maksimal 500 karakter").optional().or(z.literal("")),
 });
 
 export const updateTransactionSchema = z.object({
   printCount: z.coerce.number().int().min(1).max(999),
   paymentMethod: PaymentMethodEnum,
+  addOnQty,
   note: z.string().trim().max(500).optional().or(z.literal("")),
 });
 

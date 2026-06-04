@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail, forbidden, notFound, handle } from "@/lib/api";
 import { requireUser } from "@/lib/session";
 import { createTransactionSchema } from "@/lib/validations";
-import { computeTotal } from "@/lib/pricing";
+import { computeGrandTotal } from "@/lib/pricing";
 
 const USER_LIMIT = 10;
 
@@ -67,8 +67,15 @@ export const POST = handle(async (req: NextRequest) => {
     return forbidden();
   }
 
+  // Add-on snapshot: only if the event has it enabled.
+  const addOnUnitPrice = event.addOnEnabled ? (event.addOnPrice ?? 0) : 0;
+  const addOnQty = addOnUnitPrice > 0 ? body.addOnQty : 0;
+
   // CON-03: total computed server-side, never trusted from client.
-  const total = computeTotal(event, body.printCount);
+  const total = computeGrandTotal(event, body.printCount, {
+    qty: addOnQty,
+    unitPrice: addOnUnitPrice,
+  });
 
   const txn = await prisma.transaction.create({
     data: {
@@ -76,6 +83,8 @@ export const POST = handle(async (req: NextRequest) => {
       userId: me.id,
       printCount: body.printCount,
       paymentMethod: body.paymentMethod,
+      addOnQty,
+      addOnUnitPrice,
       total,
       note: body.note || null,
     },
@@ -88,6 +97,7 @@ export const POST = handle(async (req: NextRequest) => {
       createdAt: txn.createdAt,
       printCount: txn.printCount,
       paymentMethod: txn.paymentMethod,
+      addOnQty: txn.addOnQty,
       total: txn.total,
       note: txn.note,
       crewName: txn.user?.name ?? "",

@@ -55,6 +55,13 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
     ["Total Pendapatan", totals.totalRevenue],
     ["Pendapatan Tunai", totals.cashRevenue],
     ["Pendapatan QRIS", totals.qrisRevenue],
+    ...(event.addOnEnabled
+      ? ([
+          ["Add-on", `${event.addOnName} (${event.addOnPrice ?? 0}/item)`],
+          ["Add-on Terjual", totals.addOnQty],
+          ["Pendapatan Add-on", totals.addOnRevenue],
+        ] as [string, string | number][])
+      : []),
     ["Jumlah Crew", totals.crewCount],
     ["Crew Hadir", totals.crewAttended],
   ];
@@ -88,6 +95,9 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
     { header: "Waktu (WIB)", key: "time", width: 22 },
     { header: "Crew", key: "crew", width: 22 },
     { header: "Jumlah Print", key: "prints", width: 14 },
+    ...(recap.event.addOnEnabled
+      ? [{ header: recap.event.addOnName ?? "Add-on", key: "addon", width: 14 }]
+      : []),
     { header: "Metode", key: "method", width: 12 },
     { header: "Total", key: "total", width: 16 },
     { header: "Catatan", key: "note", width: 30 },
@@ -100,6 +110,7 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
       time: formatDateTimeWIB(t.createdAt),
       crew: t.crewName,
       prints: t.printCount,
+      ...(recap.event.addOnEnabled ? { addon: t.addOnQty } : {}),
       method: methodLabel(t.paymentMethod),
       total: t.total,
       note: t.note ?? "",
@@ -163,6 +174,7 @@ export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
     { header: "Nama Event", key: "name", width: 32 },
     { header: "Tunai", key: "cash", width: 16 },
     { header: "QRIS", key: "qris", width: 16 },
+    { header: "Add-on", key: "addon", width: 16 },
     { header: "Total", key: "total", width: 16 },
   ];
   styleHeaderRow(s2.getRow(1));
@@ -171,20 +183,24 @@ export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
       name: r.name,
       cash: r.cashRevenue,
       qris: r.qrisRevenue,
+      addon: r.addOnRevenue,
       total: r.totalRevenue,
     });
-    row.getCell("cash").numFmt = RP_FMT;
-    row.getCell("qris").numFmt = RP_FMT;
-    row.getCell("total").numFmt = RP_FMT;
+    ["cash", "qris", "addon", "total"].forEach(
+      (k) => (row.getCell(k).numFmt = RP_FMT)
+    );
   }
   const t2 = s2.addRow({
     name: "TOTAL",
     cash: recap.totals.cashRevenue,
     qris: recap.totals.qrisRevenue,
+    addon: recap.totals.addOnRevenue,
     total: recap.totals.totalRevenue,
   });
   t2.font = { bold: true };
-  ["cash", "qris", "total"].forEach((k) => (t2.getCell(k).numFmt = RP_FMT));
+  ["cash", "qris", "addon", "total"].forEach(
+    (k) => (t2.getCell(k).numFmt = RP_FMT)
+  );
 
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);

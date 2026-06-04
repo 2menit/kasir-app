@@ -14,6 +14,9 @@ export type EventRecap = {
     pricingType: PricingType;
     pricePerPrint: number;
     copyPrice: number | null;
+    addOnEnabled: boolean;
+    addOnName: string | null;
+    addOnPrice: number | null;
     status: EventStatus;
     notes: string | null;
   };
@@ -23,6 +26,8 @@ export type EventRecap = {
     totalRevenue: number;
     cashRevenue: number;
     qrisRevenue: number;
+    addOnQty: number;
+    addOnRevenue: number;
     crewCount: number;
     crewAttended: number;
   };
@@ -33,6 +38,7 @@ export type EventRecap = {
     crewName: string;
     printCount: number;
     paymentMethod: PaymentMethod;
+    addOnQty: number;
     total: number;
     note: string | null;
   }[];
@@ -56,12 +62,16 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
   let totalRevenue = 0;
   let cashRevenue = 0;
   let qrisRevenue = 0;
+  let addOnQty = 0;
+  let addOnRevenue = 0;
 
   for (const t of event.transactions) {
     totalPrints += t.printCount;
     totalRevenue += t.total;
     if (t.paymentMethod === "CASH") cashRevenue += t.total;
     else qrisRevenue += t.total;
+    addOnQty += t.addOnQty;
+    addOnRevenue += t.addOnQty * t.addOnUnitPrice;
   }
 
   return {
@@ -75,6 +85,9 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       pricingType: event.pricingType,
       pricePerPrint: event.pricePerPrint,
       copyPrice: event.copyPrice,
+      addOnEnabled: event.addOnEnabled,
+      addOnName: event.addOnName,
+      addOnPrice: event.addOnPrice,
       status: event.status,
       notes: event.notes,
     },
@@ -84,6 +97,8 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       totalRevenue,
       cashRevenue,
       qrisRevenue,
+      addOnQty,
+      addOnRevenue,
       crewCount: event.crew.length,
       crewAttended: event.crew.filter((c) => c.attended).length,
     },
@@ -98,6 +113,7 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       crewName: t.user?.name ?? "(dihapus)",
       printCount: t.printCount,
       paymentMethod: t.paymentMethod,
+      addOnQty: t.addOnQty,
       total: t.total,
       note: t.note,
     })),
@@ -115,6 +131,7 @@ export type PeriodRecapRow = {
   totalRevenue: number;
   cashRevenue: number;
   qrisRevenue: number;
+  addOnRevenue: number;
 };
 
 export type PeriodRecap = {
@@ -128,6 +145,7 @@ export type PeriodRecap = {
     totalRevenue: number;
     cashRevenue: number;
     qrisRevenue: number;
+    addOnRevenue: number;
   };
 };
 
@@ -162,11 +180,13 @@ async function buildPeriodRecap(
     let totalRevenue = 0;
     let cashRevenue = 0;
     let qrisRevenue = 0;
+    let addOnRevenue = 0;
     for (const t of e.transactions) {
       totalPrints += t.printCount;
       totalRevenue += t.total;
       if (t.paymentMethod === "CASH") cashRevenue += t.total;
       else qrisRevenue += t.total;
+      addOnRevenue += t.addOnQty * t.addOnUnitPrice;
     }
     return {
       id: e.id,
@@ -179,6 +199,7 @@ async function buildPeriodRecap(
       totalRevenue,
       cashRevenue,
       qrisRevenue,
+      addOnRevenue,
     };
   });
 
@@ -190,6 +211,7 @@ async function buildPeriodRecap(
       totalRevenue: acc.totalRevenue + r.totalRevenue,
       cashRevenue: acc.cashRevenue + r.cashRevenue,
       qrisRevenue: acc.qrisRevenue + r.qrisRevenue,
+      addOnRevenue: acc.addOnRevenue + r.addOnRevenue,
     }),
     {
       eventCount: 0,
@@ -198,6 +220,7 @@ async function buildPeriodRecap(
       totalRevenue: 0,
       cashRevenue: 0,
       qrisRevenue: 0,
+      addOnRevenue: 0,
     }
   );
 

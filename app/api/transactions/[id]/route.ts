@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, forbidden, notFound, handle } from "@/lib/api";
 import { requireUser } from "@/lib/session";
 import { updateTransactionSchema } from "@/lib/validations";
-import { computeTotal } from "@/lib/pricing";
+import { computeGrandTotal } from "@/lib/pricing";
 
 type Ctx = { params: { id: string } };
 
@@ -24,13 +24,20 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
     if (txn.event.status !== "ONGOING") return forbidden();
   }
 
-  const total = computeTotal(txn.event, body.printCount);
+  const addOnUnitPrice = txn.event.addOnEnabled ? (txn.event.addOnPrice ?? 0) : 0;
+  const addOnQty = addOnUnitPrice > 0 ? body.addOnQty : 0;
+  const total = computeGrandTotal(txn.event, body.printCount, {
+    qty: addOnQty,
+    unitPrice: addOnUnitPrice,
+  });
 
   const updated = await prisma.transaction.update({
     where: { id: params.id },
     data: {
       printCount: body.printCount,
       paymentMethod: body.paymentMethod,
+      addOnQty,
+      addOnUnitPrice,
       note: body.note || null,
       total,
     },
@@ -42,6 +49,7 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
     createdAt: updated.createdAt,
     printCount: updated.printCount,
     paymentMethod: updated.paymentMethod,
+    addOnQty: updated.addOnQty,
     total: updated.total,
     note: updated.note,
     crewName: updated.user?.name ?? "(dihapus)",

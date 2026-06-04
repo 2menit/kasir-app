@@ -24,6 +24,22 @@ export function computeTotal(p: PricingInput, printCount: number): number {
   return count * p.pricePerPrint;
 }
 
+/** Add-on subtotal = qty × unit price (clamped to ≥ 0). */
+export function computeAddOnTotal(qty: number, unitPrice: number): number {
+  return Math.max(0, Math.floor(qty)) * Math.max(0, Math.floor(unitPrice));
+}
+
+/** Prints total + add-on total. Used by the cashier preview and the API. */
+export function computeGrandTotal(
+  p: PricingInput,
+  printCount: number,
+  addOn?: { qty: number; unitPrice: number }
+): number {
+  const prints = computeTotal(p, printCount);
+  const addOnTotal = addOn ? computeAddOnTotal(addOn.qty, addOn.unitPrice) : 0;
+  return prints + addOnTotal;
+}
+
 export const pricingLabel: Record<PricingType, string> = {
   BIASA: "Biasa",
   PISAH: "Pisah (cetak + salinan)",

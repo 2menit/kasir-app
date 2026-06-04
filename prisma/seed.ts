@@ -23,6 +23,14 @@ async function main() {
   });
   console.log(`✔ Superadmin ready: ${superadmin.username}`);
 
+  // Production-safe: only seed the superadmin unless demo data is requested.
+  if (process.env.SEED_DEMO !== "true") {
+    console.log(
+      "• SEED_DEMO not 'true' — skipping demo crew & events (production-safe)."
+    );
+    return;
+  }
+
   // ── Demo crew accounts ──────────────────────────────────────────────────
   const crewSeed = [
     { name: "Budi Santoso", username: "budi" },

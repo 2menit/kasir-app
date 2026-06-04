@@ -33,6 +33,7 @@ type PeriodRecap = {
     totalRevenue: number;
     cashRevenue: number;
     qrisRevenue: number;
+    addOnRevenue: number;
   };
 };
 
@@ -161,7 +162,7 @@ export function RecapViewer({
 
       {data && (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
             <KpiCard
               label="Total Pendapatan"
               value={formatRupiah(data.totals.totalRevenue)}
@@ -169,6 +170,10 @@ export function RecapViewer({
             />
             <KpiCard label="Tunai" value={formatRupiah(data.totals.cashRevenue)} />
             <KpiCard label="QRIS" value={formatRupiah(data.totals.qrisRevenue)} />
+            <KpiCard
+              label="Add-on"
+              value={formatRupiah(data.totals.addOnRevenue)}
+            />
             <KpiCard
               label="Total Event"
               value={formatNumber(data.totals.eventCount)}

@@ -7,7 +7,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Pooled connection for the app (serverless-safe).
   url      = env("DATABASE_URL")
+  // Direct connection for migrations (Neon/Supabase pooler can't run them).
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -60,6 +63,10 @@ model Event {
   pricingType   PricingType @default(BIASA)
   pricePerPrint Int // base / first-print price (Rp)
   copyPrice     Int? // per same-photo copy price (Rp); used when pricingType = PISAH
+  // Optional per-event add-on (e.g. gantungan kunci)
+  addOnEnabled  Boolean     @default(false)
+  addOnName     String?
+  addOnPrice    Int?
   status        EventStatus @default(UPCOMING)
   notes         String?
   createdAt     DateTime    @default(now())
@@ -90,7 +97,10 @@ model Transaction {
   userId        String?
   printCount    Int
   paymentMethod PaymentMethod
-  total         Int // pricePerPrint × printCount (in Rp), computed server-side
+  // Add-on sold in this transaction (snapshot unit price for accurate recap)
+  addOnQty       Int           @default(0)
+  addOnUnitPrice Int           @default(0)
+  total         Int // (prints + add-on) total in Rp, computed server-side
   note          String?
   createdAt     DateTime      @default(now())
 

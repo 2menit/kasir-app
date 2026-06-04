@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { StatusBadge, PricingBadge } from "@/components/ui/badge";
-import { formatDateWIB, formatRupiah, formatTimeRangeWIB } from "@/lib/format";
+import { formatDateWIB, formatTimeRangeWIB } from "@/lib/format";
 import { Cashier, type TxnView } from "./cashier";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +38,7 @@ export default async function UserEventPage({
     createdAt: t.createdAt.toISOString(),
     printCount: t.printCount,
     paymentMethod: t.paymentMethod,
+    addOnQty: t.addOnQty,
     total: t.total,
     note: t.note,
     crewName: t.user?.name ?? "(dihapus)",
@@ -72,6 +73,9 @@ export default async function UserEventPage({
         pricingType={event.pricingType}
         pricePerPrint={event.pricePerPrint}
         copyPrice={event.copyPrice}
+        addOnEnabled={event.addOnEnabled}
+        addOnName={event.addOnName}
+        addOnPrice={event.addOnPrice}
         isOngoing={event.status === "ONGOING"}
         canEditAttendance={
           event.status !== "DONE" && event.status !== "CANCELLED"

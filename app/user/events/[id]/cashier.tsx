@@ -12,7 +12,7 @@ import { MethodBadge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { apiFetch } from "@/lib/client";
 import { formatRupiah, formatTimeWIB } from "@/lib/format";
-import { computeTotal } from "@/lib/pricing";
+import { computeTotal, computeAddOnTotal } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import type { PricingType } from "@prisma/client";
 
@@ -21,6 +21,7 @@ export type TxnView = {
   createdAt: string;
   printCount: number;
   paymentMethod: PaymentMethod;
+  addOnQty: number;
   total: number;
   note: string | null;
   crewName: string;
@@ -31,6 +32,9 @@ export function Cashier({
   pricingType,
   pricePerPrint,
   copyPrice,
+  addOnEnabled,
+  addOnName,
+  addOnPrice,
   isOngoing,
   canEditAttendance,
   initialAttended,
@@ -40,6 +44,9 @@ export function Cashier({
   pricingType: PricingType;
   pricePerPrint: number;
   copyPrice: number | null;
+  addOnEnabled: boolean;
+  addOnName: string | null;
+  addOnPrice: number | null;
   isOngoing: boolean;
   canEditAttendance: boolean;
   initialAttended: boolean;
@@ -47,6 +54,7 @@ export function Cashier({
 }) {
   const [transactions, setTransactions] = useState<TxnView[]>(initialTransactions);
   const [printCount, setPrintCount] = useState(1);
+  const [addOnQty, setAddOnQty] = useState(0);
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,8 +63,15 @@ export function Cashier({
   const [attended, setAttended] = useState(initialAttended);
   const [togglingAttendance, setTogglingAttendance] = useState(false);
 
-  const total = computeTotal({ pricingType, pricePerPrint, copyPrice }, printCount);
   const isPisah = pricingType === "PISAH";
+  const addOnActive = addOnEnabled && !!addOnPrice && addOnPrice > 0;
+  const addOnLabel = addOnName || "Add-on";
+  const printsTotal = computeTotal(
+    { pricingType, pricePerPrint, copyPrice },
+    printCount
+  );
+  const addOnTotal = addOnActive ? computeAddOnTotal(addOnQty, addOnPrice) : 0;
+  const total = printsTotal + addOnTotal;
 
   async function toggleAttendance() {
     setTogglingAttendance(true);
@@ -84,6 +99,7 @@ export function Cashier({
         eventId,
         printCount,
         paymentMethod: method,
+        addOnQty: addOnActive ? addOnQty : 0,
         note,
       }),
     });
@@ -96,6 +112,7 @@ export function Cashier({
     setTransactions((prev) => [res.data, ...prev].slice(0, 10));
     setLastSaved(res.data);
     setPrintCount(1);
+    setAddOnQty(0);
     setNote("");
     setMethod("CASH");
     toast.success("Transaksi tersimpan");
@@ -202,6 +219,48 @@ export function Cashier({
                 </div>
               </Field>
 
+              {addOnActive && (
+                <Field
+                  label={addOnLabel}
+                  hint={`Add-on · ${formatRupiah(addOnPrice)} / item`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      className="aspect-square px-0"
+                      onClick={() => setAddOnQty((c) => Math.max(0, c - 1))}
+                      aria-label="Kurangi add-on"
+                    >
+                      <Minus className="h-5 w-5" />
+                    </Button>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={999}
+                      value={addOnQty}
+                      onChange={(e) =>
+                        setAddOnQty(
+                          Math.max(0, Math.min(999, Number(e.target.value) || 0))
+                        )
+                      }
+                      className="h-14 w-24 text-center text-xl font-semibold"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      className="aspect-square px-0"
+                      onClick={() => setAddOnQty((c) => Math.min(999, c + 1))}
+                      aria-label="Tambah add-on"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </Field>
+              )}
+
               <Field label="Metode Pembayaran" required>
                 <div className="grid grid-cols-2 gap-3">
                   {(["CASH", "QRIS"] as PaymentMethod[]).map((m) => (
@@ -232,11 +291,32 @@ export function Cashier({
                 />
               </Field>
 
-              <div className="flex items-center justify-between rounded-md bg-surface-soft px-4 py-3">
-                <span className="text-sm text-body">Total</span>
-                <span className="font-mono text-xl font-semibold tabular-nums">
-                  {formatRupiah(total)}
-                </span>
+              <div className="rounded-md bg-surface-soft px-4 py-3">
+                {addOnActive && (
+                  <>
+                    <div className="flex items-center justify-between text-sm text-body">
+                      <span>Cetak ({printCount})</span>
+                      <span className="font-mono tabular-nums">
+                        {formatRupiah(printsTotal)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-sm text-body">
+                      <span>
+                        {addOnLabel} ({addOnQty})
+                      </span>
+                      <span className="font-mono tabular-nums">
+                        {formatRupiah(addOnTotal)}
+                      </span>
+                    </div>
+                    <div className="my-2 border-t border-hairline" />
+                  </>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-ink">Total</span>
+                  <span className="font-mono text-xl font-semibold tabular-nums">
+                    {formatRupiah(total)}
+                  </span>
+                </div>
               </div>
 
               <Button type="submit" size="lg" className="w-full" loading={saving}>
@@ -256,8 +336,14 @@ export function Cashier({
               <div className="flex-1">
                 <p className="font-semibold text-up">Transaksi tersimpan</p>
                 <p className="mt-1 text-sm text-body">
-                  {lastSaved.printCount} print ·{" "}
-                  {lastSaved.paymentMethod === "CASH" ? "Tunai" : "QRIS"} ·{" "}
+                  {lastSaved.printCount} print
+                  {lastSaved.addOnQty > 0 && (
+                    <>
+                      {" "}
+                      + {lastSaved.addOnQty} {addOnLabel}
+                    </>
+                  )}{" "}
+                  · {lastSaved.paymentMethod === "CASH" ? "Tunai" : "QRIS"} ·{" "}
                   <span className="font-mono tabular-nums">
                     {formatRupiah(lastSaved.total)}
                   </span>{" "}
@@ -286,6 +372,7 @@ export function Cashier({
                   <TH className="w-10">#</TH>
                   <TH>Waktu</TH>
                   <TH className="text-right">Print</TH>
+                  {addOnActive && <TH className="text-right">{addOnLabel}</TH>}
                   <TH>Metode</TH>
                   <TH className="text-right">Total</TH>
                   <TH>Catatan</TH>
@@ -301,6 +388,11 @@ export function Cashier({
                     <TD className="text-right font-mono tabular-nums">
                       {t.printCount}
                     </TD>
+                    {addOnActive && (
+                      <TD className="text-right font-mono tabular-nums">
+                        {t.addOnQty || "—"}
+                      </TD>
+                    )}
                     <TD>
                       <MethodBadge method={t.paymentMethod} />
                     </TD>

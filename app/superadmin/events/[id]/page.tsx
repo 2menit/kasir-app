@@ -104,6 +104,18 @@ export default async function EventDetailPage({
                   {formatRupiah(totals.qrisRevenue)}
                 </dd>
               </div>
+              {event.addOnEnabled && (
+                <div className="col-span-2">
+                  <dt className="text-muted">
+                    Add-on · {event.addOnName} (
+                    {formatRupiah(event.addOnPrice ?? 0)}/item)
+                  </dt>
+                  <dd className="font-mono font-medium tabular-nums">
+                    {formatNumber(totals.addOnQty)} item terjual ·{" "}
+                    {formatRupiah(totals.addOnRevenue)}
+                  </dd>
+                </div>
+              )}
               {event.notes && (
                 <div className="col-span-2">
                   <dt className="text-muted">Catatan</dt>
@@ -185,6 +197,9 @@ export default async function EventDetailPage({
                   <TH>Waktu</TH>
                   <TH>Crew</TH>
                   <TH className="text-right">Print</TH>
+                  {event.addOnEnabled && (
+                    <TH className="text-right">{event.addOnName}</TH>
+                  )}
                   <TH>Metode</TH>
                   <TH className="text-right">Total</TH>
                   <TH>Catatan</TH>
@@ -201,6 +216,11 @@ export default async function EventDetailPage({
                     <TD className="text-right font-mono tabular-nums">
                       {t.printCount}
                     </TD>
+                    {event.addOnEnabled && (
+                      <TD className="text-right font-mono tabular-nums">
+                        {t.addOnQty || "—"}
+                      </TD>
+                    )}
                     <TD>
                       <MethodBadge method={t.paymentMethod} />
                     </TD>

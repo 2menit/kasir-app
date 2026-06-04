@@ -27,6 +27,9 @@ export type EventFormInitial = {
   pricingType: "BIASA" | "PISAH";
   pricePerPrint: number;
   copyPrice: number;
+  addOnEnabled: boolean;
+  addOnName: string;
+  addOnPrice: number;
   status: string;
   notes: string;
   crewIds: string[];
@@ -42,6 +45,9 @@ const blank: EventFormInitial = {
   pricingType: "BIASA",
   pricePerPrint: 15000,
   copyPrice: 10000,
+  addOnEnabled: false,
+  addOnName: "Gantungan Kunci",
+  addOnPrice: 5000,
   status: "UPCOMING",
   notes: "",
   crewIds: [],
@@ -104,6 +110,9 @@ export function EventForm({
       pricingType: form.pricingType,
       pricePerPrint: Number(form.pricePerPrint),
       copyPrice: form.pricingType === "PISAH" ? Number(form.copyPrice) : null,
+      addOnEnabled: form.addOnEnabled,
+      addOnName: form.addOnName,
+      addOnPrice: form.addOnEnabled ? Number(form.addOnPrice) : null,
       status: form.status,
       notes: form.notes,
       crewIds: form.crewIds,
@@ -248,6 +257,53 @@ export function EventForm({
               placeholder="Catatan tambahan (opsional)"
             />
           </Field>
+        </CardContent>
+      </Card>
+
+      {/* Add-on (optional per-event extra item, e.g. gantungan kunci) */}
+      <Card>
+        <CardContent>
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <span>
+              <span className="text-base font-semibold tracking-display">
+                Add-on
+              </span>
+              <span className="mt-1 block text-sm text-body">
+                Produk tambahan opsional yang bisa dijual di kasir.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={form.addOnEnabled}
+              onChange={(e) => set("addOnEnabled", e.target.checked)}
+              className="mt-1 h-5 w-5 shrink-0 accent-primary"
+            />
+          </label>
+
+          {form.addOnEnabled && (
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <Field label="Nama Add-on" error={errors.addOnName} required>
+                <Input
+                  value={form.addOnName}
+                  onChange={(e) => set("addOnName", e.target.value)}
+                  placeholder="Gantungan Kunci"
+                />
+              </Field>
+              <Field
+                label="Harga / item (Rp)"
+                error={errors.addOnPrice}
+                required
+              >
+                <Input
+                  type="number"
+                  min={1000}
+                  step={500}
+                  value={form.addOnPrice}
+                  onChange={(e) => set("addOnPrice", Number(e.target.value))}
+                />
+              </Field>
+            </div>
+          )}
         </CardContent>
       </Card>
 

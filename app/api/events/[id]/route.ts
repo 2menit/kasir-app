@@ -63,6 +63,9 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
         pricePerPrint: body.pricePerPrint,
         copyPrice:
           body.pricingType === "PISAH" ? (body.copyPrice ?? null) : null,
+        addOnEnabled: body.addOnEnabled,
+        addOnName: body.addOnEnabled ? (body.addOnName || "Add-on") : null,
+        addOnPrice: body.addOnEnabled ? (body.addOnPrice ?? null) : null,
         status: body.status,
         notes: body.notes || null,
       },

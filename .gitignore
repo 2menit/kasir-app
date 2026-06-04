@@ -34,3 +34,6 @@ dev.log
 # prisma
 /prisma/*.db
 /prisma/*.db-journal
+
+.mcp.json
+deploy.md
