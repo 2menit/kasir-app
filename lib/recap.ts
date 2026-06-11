@@ -170,7 +170,8 @@ async function buildPeriodRecap(
   end: Date
 ): Promise<PeriodRecap> {
   const events = await prisma.event.findMany({
-    where: { eventDate: { gte: start, lt: end } },
+    // Cancelled events are excluded from all financial aggregations.
+    where: { eventDate: { gte: start, lt: end }, status: { not: "CANCELLED" } },
     include: { transactions: true },
     orderBy: { eventDate: "asc" },
   });
@@ -263,7 +264,8 @@ export async function getMonthlyDashboard(
 ): Promise<MonthlyDashboard> {
   const { start, end } = monthRangeUtc(month, year);
   const events = await prisma.event.findMany({
-    where: { eventDate: { gte: start, lt: end } },
+    // Cancelled events are excluded from all financial aggregations.
+    where: { eventDate: { gte: start, lt: end }, status: { not: "CANCELLED" } },
     include: {
       transactions: { select: { total: true, printCount: true } },
       crew: { select: { userId: true } },
@@ -302,7 +304,8 @@ export async function getYearlyRevenue(
   const { start } = monthRangeUtc(1, year);
   const { end } = monthRangeUtc(12, year);
   const events = await prisma.event.findMany({
-    where: { eventDate: { gte: start, lt: end } },
+    // Cancelled events are excluded from all financial aggregations.
+    where: { eventDate: { gte: start, lt: end }, status: { not: "CANCELLED" } },
     select: {
       eventDate: true,
       transactions: { select: { total: true } },

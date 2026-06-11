@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge, PricingBadge, MethodBadge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { DownloadRecapButton } from "@/components/download-recap-button";
+import { DeleteEventButton } from "@/components/delete-event-button";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,10 @@ export default async function EventDetailPage({
         <div className="flex gap-2">
           <DownloadRecapButton
             href={`/api/recaps/export?type=event&id=${event.id}`}
+          />
+          <DeleteEventButton
+            eventId={event.id}
+            transactionCount={totals.transactionCount}
           />
           <Link href={`/superadmin/events/${event.id}/edit`}>
             <Button>

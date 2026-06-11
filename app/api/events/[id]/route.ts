@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ok, notFound, forbidden, handle } from "@/lib/api";
+import { ok, fail, notFound, forbidden, handle } from "@/lib/api";
 import { requireUser, requireSuperadmin } from "@/lib/session";
 import { updateEventSchema } from "@/lib/validations";
 import { isoDateWIB, combineWibDateTime } from "@/lib/format";
@@ -96,5 +96,28 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
     }
   });
 
+  return ok({ id: params.id });
+});
+
+// DELETE /api/events/:id — [superadmin] delete event ONLY if it has no
+// transactions (protects financial history; otherwise use CANCELLED status).
+export const DELETE = handle(async (_req: NextRequest, { params }: Ctx) => {
+  await requireSuperadmin();
+
+  const event = await prisma.event.findUnique({
+    where: { id: params.id },
+    include: { _count: { select: { transactions: true } } },
+  });
+  if (!event) return notFound("Event");
+
+  if (event._count.transactions > 0) {
+    return fail(
+      `Event memiliki ${event._count.transactions} transaksi dan tidak dapat dihapus. Gunakan status "Dibatalkan".`,
+      409
+    );
+  }
+
+  // Crew assignments cascade-delete; no transactions exist to remove.
+  await prisma.event.delete({ where: { id: params.id } });
   return ok({ id: params.id });
 });
