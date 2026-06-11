@@ -27,7 +27,7 @@ const methodLabel = (m: string) => (m === "CASH" ? "Tunai" : "QRIS");
 /** Per-event workbook: Sheet 1 summary, Sheet 2 transaction detail. */
 export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Photobooth Cashier";
+  wb.creator = "2Menit Photobooth Kasir";
   wb.created = new Date();
 
   // ── Sheet 1: Summary ──
@@ -125,7 +125,7 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
 /** Period (monthly/quarterly) workbook: Sheet 1 summary, Sheet 2 events breakdown. */
 export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Photobooth Cashier";
+  wb.creator = "2Menit Photobooth Kasir";
   wb.created = new Date();
 
   const s1 = wb.addWorksheet("Ringkasan");

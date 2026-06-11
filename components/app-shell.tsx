@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Camera } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NavLinks, type NavItem } from "@/components/nav-links";
@@ -21,11 +20,14 @@ export function AppShell({
         <div className="mx-auto flex h-16 max-w-content items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-on-primary">
-                <Camera className="h-4 w-4" />
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/simple-logo-2menit.png"
+                alt="2Menit Photobooth Kasir"
+                className="h-8 w-auto"
+              />
               <span className="hidden text-[15px] font-semibold tracking-display sm:inline">
-                Photobooth Cashier
+                2Menit Photobooth Kasir
               </span>
             </Link>
             <NavLinks items={nav} />

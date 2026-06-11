@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function LoginForm() {
@@ -40,16 +39,19 @@ export function LoginForm() {
     <div className="relative min-h-screen bg-surface-dark text-on-dark">
       {/* Brand mark, top-left */}
       <div className="absolute left-6 top-6 sm:left-8 sm:top-8">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink">
-          <Camera className="h-5 w-5" />
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/simple-logo-2menit.png"
+          alt="2Menit Photobooth Kasir"
+          className="h-10 w-auto"
+        />
       </div>
 
       {/* Centered form column */}
       <div className="flex min-h-screen items-center justify-center px-6 py-16">
         <div className="w-full max-w-[400px]">
           <h1 className="mb-8 text-2xl font-semibold tracking-display sm:text-3xl">
-            Masuk ke Photobooth Cashier
+            Masuk ke 2Menit Photobooth Kasir
           </h1>
 
           <form onSubmit={onSubmit} className="space-y-4">

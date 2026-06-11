@@ -17,8 +17,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Photobooth Cashier",
+  title: "2Menit Photobooth Kasir",
   description: "Aplikasi kasir & rekap keuangan photobooth.",
+  icons: { icon: "/simple-logo-2menit.png" },
 };
 
 export default function RootLayout({
