@@ -71,11 +71,18 @@ export const POST = handle(async (req: NextRequest) => {
   const addOnUnitPrice = event.addOnEnabled ? (event.addOnPrice ?? 0) : 0;
   const addOnQty = addOnUnitPrice > 0 ? body.addOnQty : 0;
 
+  // Defense-in-depth: a transaction must have at least one real item.
+  if (body.printCount < 1 && addOnQty < 1) {
+    return fail("Minimal 1 item (cetak atau add-on)", 400);
+  }
+
   // CON-03: total computed server-side, never trusted from client.
-  const total = computeGrandTotal(event, body.printCount, {
-    qty: addOnQty,
-    unitPrice: addOnUnitPrice,
-  });
+  const total = computeGrandTotal(
+    event,
+    body.printCount,
+    { qty: addOnQty, unitPrice: addOnUnitPrice },
+    { copyOnly: body.copyOnly }
+  );
 
   const txn = await prisma.transaction.create({
     data: {

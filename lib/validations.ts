@@ -159,24 +159,51 @@ const addOnQty = z
   .optional()
   .default(0);
 
-export const createTransactionSchema = z.object({
-  eventId: z.string().min(1, "Event wajib diisi"),
-  printCount: z
-    .coerce.number()
-    .int("Jumlah print harus bilangan bulat")
-    .min(1, "Minimal 1 print")
-    .max(999, "Maksimal 999 print"),
-  paymentMethod: PaymentMethodEnum,
-  addOnQty,
-  note: z.string().trim().max(500, "Catatan maksimal 500 karakter").optional().or(z.literal("")),
-});
+// printCount may be 0 (e.g. add-on only); the "≥ 1 item" rule is enforced by
+// the refine below (print + add-on must total at least 1).
+const printCount = z
+  .coerce.number()
+  .int("Jumlah print harus bilangan bulat")
+  .min(0)
+  .max(999, "Maksimal 999 print");
 
-export const updateTransactionSchema = z.object({
-  printCount: z.coerce.number().int().min(1).max(999),
-  paymentMethod: PaymentMethodEnum,
-  addOnQty,
-  note: z.string().trim().max(500).optional().or(z.literal("")),
-});
+// charge all prints at the copy price (PISAH reprints/salinan)
+const copyOnly = z.boolean().optional().default(false);
+
+// At least one item (print or add-on) must be present.
+function requireAtLeastOneItem(
+  v: { printCount: number; addOnQty?: number },
+  ctx: z.RefinementCtx
+) {
+  if (v.printCount + (v.addOnQty ?? 0) < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["printCount"],
+      message: "Minimal 1 item (cetak atau add-on)",
+    });
+  }
+}
+
+export const createTransactionSchema = z
+  .object({
+    eventId: z.string().min(1, "Event wajib diisi"),
+    printCount,
+    paymentMethod: PaymentMethodEnum,
+    addOnQty,
+    copyOnly,
+    note: z.string().trim().max(500, "Catatan maksimal 500 karakter").optional().or(z.literal("")),
+  })
+  .superRefine(requireAtLeastOneItem);
+
+export const updateTransactionSchema = z
+  .object({
+    printCount,
+    paymentMethod: PaymentMethodEnum,
+    addOnQty,
+    copyOnly,
+    note: z.string().trim().max(500).optional().or(z.literal("")),
+  })
+  .superRefine(requireAtLeastOneItem);
 
 // ── Recap query ──────────────────────────────────────────────────────────────
 export const monthlyRecapSchema = z.object({

@@ -55,6 +55,7 @@ export function Cashier({
   const [transactions, setTransactions] = useState<TxnView[]>(initialTransactions);
   const [printCount, setPrintCount] = useState(1);
   const [addOnQty, setAddOnQty] = useState(0);
+  const [copyOnly, setCopyOnly] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -68,10 +69,14 @@ export function Cashier({
   const addOnLabel = addOnName || "Add-on";
   const printsTotal = computeTotal(
     { pricingType, pricePerPrint, copyPrice },
-    printCount
+    printCount,
+    { copyOnly }
   );
   const addOnTotal = addOnActive ? computeAddOnTotal(addOnQty, addOnPrice) : 0;
   const total = printsTotal + addOnTotal;
+  // A transaction needs at least one item (a print or an add-on).
+  const itemCount = printCount + (addOnActive ? addOnQty : 0);
+  const printLabel = copyOnly ? "Salinan" : "Cetak";
 
   async function toggleAttendance() {
     setTogglingAttendance(true);
@@ -91,7 +96,7 @@ export function Cashier({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (printCount < 1) return;
+    if (itemCount < 1) return;
     setSaving(true);
     const res = await apiFetch<TxnView>("/api/transactions", {
       method: "POST",
@@ -100,6 +105,7 @@ export function Cashier({
         printCount,
         paymentMethod: method,
         addOnQty: addOnActive ? addOnQty : 0,
+        copyOnly: isPisah ? copyOnly : false,
         note,
       }),
     });
@@ -113,6 +119,7 @@ export function Cashier({
     setLastSaved(res.data);
     setPrintCount(1);
     setAddOnQty(0);
+    setCopyOnly(false);
     setNote("");
     setMethod("CASH");
     toast.success("Transaksi tersimpan");
@@ -172,16 +179,29 @@ export function Cashier({
                     </span>
                     .
                   </p>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={copyOnly}
+                      onChange={(e) => setCopyOnly(e.target.checked)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="text-ink">
+                      Hanya salinan — semua lembar pakai harga copy{" "}
+                      <span className="font-mono">
+                        {formatRupiah(copyPrice ?? pricePerPrint)}
+                      </span>
+                    </span>
+                  </label>
                 </div>
               )}
               <Field
-                label="Jumlah Print"
+                label={`Jumlah ${isPisah ? printLabel : "Cetak"}`}
                 hint={
-                  isPisah
-                    ? "Jumlah cetakan untuk satu foto (termasuk salinan)."
+                  addOnActive
+                    ? "Boleh 0 jika pelanggan hanya membeli add-on."
                     : undefined
                 }
-                required
               >
                 <div className="flex items-center gap-3">
                   <Button
@@ -189,19 +209,19 @@ export function Cashier({
                     variant="outline"
                     size="lg"
                     className="aspect-square px-0"
-                    onClick={() => setPrintCount((c) => Math.max(1, c - 1))}
+                    onClick={() => setPrintCount((c) => Math.max(0, c - 1))}
                     aria-label="Kurangi"
                   >
                     <Minus className="h-5 w-5" />
                   </Button>
                   <Input
                     type="number"
-                    min={1}
+                    min={0}
                     max={999}
                     value={printCount}
                     onChange={(e) =>
                       setPrintCount(
-                        Math.max(1, Math.min(999, Number(e.target.value) || 1))
+                        Math.max(0, Math.min(999, Number(e.target.value) || 0))
                       )
                     }
                     className="h-14 w-24 text-center text-xl font-semibold"
@@ -292,22 +312,26 @@ export function Cashier({
               </Field>
 
               <div className="rounded-md bg-surface-soft px-4 py-3">
-                {addOnActive && (
+                {(addOnActive || isPisah) && (
                   <>
                     <div className="flex items-center justify-between text-sm text-body">
-                      <span>Cetak ({printCount})</span>
+                      <span>
+                        {printLabel} ({printCount})
+                      </span>
                       <span className="font-mono tabular-nums">
                         {formatRupiah(printsTotal)}
                       </span>
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-sm text-body">
-                      <span>
-                        {addOnLabel} ({addOnQty})
-                      </span>
-                      <span className="font-mono tabular-nums">
-                        {formatRupiah(addOnTotal)}
-                      </span>
-                    </div>
+                    {addOnActive && (
+                      <div className="mt-1 flex items-center justify-between text-sm text-body">
+                        <span>
+                          {addOnLabel} ({addOnQty})
+                        </span>
+                        <span className="font-mono tabular-nums">
+                          {formatRupiah(addOnTotal)}
+                        </span>
+                      </div>
+                    )}
                     <div className="my-2 border-t border-hairline" />
                   </>
                 )}
@@ -319,9 +343,20 @@ export function Cashier({
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full" loading={saving}>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                loading={saving}
+                disabled={itemCount < 1}
+              >
                 Simpan Transaksi
               </Button>
+              {itemCount < 1 && (
+                <p className="text-center text-sm text-muted">
+                  Tambah minimal 1 cetak atau add-on untuk menyimpan.
+                </p>
+              )}
             </form>
           )}
         </CardContent>

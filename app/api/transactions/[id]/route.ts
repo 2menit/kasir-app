@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ok, forbidden, notFound, handle } from "@/lib/api";
+import { ok, fail, forbidden, notFound, handle } from "@/lib/api";
 import { requireUser } from "@/lib/session";
 import { updateTransactionSchema } from "@/lib/validations";
 import { computeGrandTotal } from "@/lib/pricing";
@@ -26,10 +26,17 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
 
   const addOnUnitPrice = txn.event.addOnEnabled ? (txn.event.addOnPrice ?? 0) : 0;
   const addOnQty = addOnUnitPrice > 0 ? body.addOnQty : 0;
-  const total = computeGrandTotal(txn.event, body.printCount, {
-    qty: addOnQty,
-    unitPrice: addOnUnitPrice,
-  });
+
+  if (body.printCount < 1 && addOnQty < 1) {
+    return fail("Minimal 1 item (cetak atau add-on)", 400);
+  }
+
+  const total = computeGrandTotal(
+    txn.event,
+    body.printCount,
+    { qty: addOnQty, unitPrice: addOnUnitPrice },
+    { copyOnly: body.copyOnly }
+  );
 
   const updated = await prisma.transaction.update({
     where: { id: params.id },
