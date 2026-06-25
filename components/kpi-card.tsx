@@ -12,11 +12,16 @@ export function KpiCard({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border border-hairline bg-canvas p-5", className)}>
+    <div
+      className={cn(
+        "rounded-xl border border-hairline bg-canvas p-4 sm:p-5",
+        className
+      )}
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </p>
-      <p className="mt-2 font-mono text-2xl font-medium tabular-nums tracking-tight text-ink">
+      <p className="mt-2 break-words font-mono text-xl font-medium tabular-nums tracking-tight text-ink sm:text-2xl">
         {value}
       </p>
       {sub && <p className="mt-1 text-xs text-body">{sub}</p>}

@@ -71,8 +71,13 @@ export default async function SuperadminDashboard({
           </h2>
           <MonthPicker month={month} year={year} />
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard label="Total Pendapatan" value={formatRupiah(kpis.totalRevenue)} />
+        {/* Mobile: revenue full-width, then Print/Event/Crew in a 3-up row. */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:grid-cols-4">
+          <KpiCard
+            label="Total Pendapatan"
+            value={formatRupiah(kpis.totalRevenue)}
+            className="col-span-3 lg:col-span-1"
+          />
           <KpiCard label="Total Print" value={formatNumber(kpis.totalPrints)} />
           <KpiCard label="Event" value={formatNumber(kpis.eventCount)} />
           <KpiCard label="Jumlah Crew" value={formatNumber(kpis.crewCount)} />

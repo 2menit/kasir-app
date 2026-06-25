@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NavLinks, type NavItem } from "@/components/nav-links";
+import { MobileNav } from "@/components/mobile-nav";
 
 export function AppShell({
   user,
@@ -30,12 +31,15 @@ export function AppShell({
                 2Menit Photobooth Kasir
               </span>
             </Link>
-            <NavLinks items={nav} />
+            {/* Inline nav on desktop only */}
+            <div className="hidden md:block">
+              <NavLinks items={nav} />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href={profileHref}
-              className="hidden rounded-md px-2 py-1 text-right transition-colors hover:bg-surface-soft sm:block"
+              className="hidden rounded-md px-2 py-1 text-right transition-colors hover:bg-surface-soft md:block"
               title="Profil saya"
             >
               <p className="text-sm font-semibold leading-tight">{user.name}</p>
@@ -44,7 +48,11 @@ export function AppShell({
               </p>
             </Link>
             <ThemeToggle />
-            <LogoutButton />
+            {/* Logout button on desktop; on mobile it lives in the hamburger */}
+            <span className="hidden md:inline-flex">
+              <LogoutButton />
+            </span>
+            <MobileNav nav={nav} />
           </div>
         </div>
       </header>
