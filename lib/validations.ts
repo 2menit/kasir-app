@@ -69,7 +69,8 @@ const timeField = z
 const eventBase = {
   name: z.string().trim().min(2, "Nama event minimal 2 karakter").max(150),
   location: z.string().trim().min(2, "Lokasi wajib diisi").max(200),
-  eventDate: z.coerce.date({ errorMap: () => ({ message: "Tanggal tidak valid" }) }),
+  eventDateStart: z.coerce.date({ errorMap: () => ({ message: "Tanggal mulai tidak valid" }) }),
+  eventDateEnd: z.coerce.date({ errorMap: () => ({ message: "Tanggal selesai tidak valid" }) }),
   startTime: timeField,
   endTime: timeField,
   pricingType: PricingTypeEnum.default("BIASA"),
@@ -88,6 +89,8 @@ const eventBase = {
 function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
   return schema.superRefine((val, ctx) => {
     const v = val as {
+      eventDateStart?: Date;
+      eventDateEnd?: Date;
       pricingType?: string;
       copyPrice?: number | null;
       addOnEnabled?: boolean;
@@ -96,6 +99,13 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
       startTime?: string;
       endTime?: string;
     };
+    if (v.eventDateStart && v.eventDateEnd && v.eventDateEnd < v.eventDateStart) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["eventDateEnd"],
+        message: "Tanggal selesai harus sama atau setelah tanggal mulai",
+      });
+    }
     if (v.pricingType === "PISAH" && (v.copyPrice == null || v.copyPrice <= 0)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

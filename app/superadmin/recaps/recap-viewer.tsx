@@ -15,7 +15,7 @@ import { formatRupiah, formatNumber, formatDateWIB, MONTH_NAMES_ID } from "@/lib
 type Row = {
   id: string;
   name: string;
-  eventDate: string;
+  eventDateStart: string;
   location: string;
   pricingType: "BIASA" | "PISAH";
   transactionCount: number;
@@ -213,7 +213,7 @@ export function RecapViewer({
                         <TD className="text-muted">{i + 1}</TD>
                         <TD className="font-medium">{r.name}</TD>
                         <TD className="whitespace-nowrap">
-                          {formatDateWIB(r.eventDate)}
+                          {formatDateWIB(r.eventDateStart)}
                         </TD>
                         <TD className="text-body">{r.location}</TD>
                         <TD className="text-body">

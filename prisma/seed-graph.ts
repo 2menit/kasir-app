@@ -50,7 +50,8 @@ async function main() {
       data: {
         name: p.name,
         location: p.location,
-        eventDate,
+        eventDateStart: eventDate,
+        eventDateEnd: eventDate,
         pricePerPrint: p.price,
         status: EventStatus.DONE,
         crew: {
@@ -90,7 +91,8 @@ async function main() {
       data: {
         name: pisahName,
         location: "Ballroom Demo, Malang",
-        eventDate: now,
+        eventDateStart: now,
+        eventDateEnd: now,
         startTime: start,
         endTime: end,
         pricingType: "PISAH",

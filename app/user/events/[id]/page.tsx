@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { StatusBadge, PricingBadge } from "@/components/ui/badge";
-import { formatDateWIB, formatTimeRangeWIB } from "@/lib/format";
+import { formatDateRangeWIB, formatTimeRangeWIB } from "@/lib/format";
 import { Cashier, type TxnView } from "./cashier";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +60,7 @@ export default async function UserEventPage({
         </div>
         <h1 className="text-2xl font-semibold tracking-display">{event.name}</h1>
         <p className="mt-1 text-sm text-body">
-          {formatDateWIB(event.eventDate)}
+          {formatDateRangeWIB(event.eventDateStart, event.eventDateEnd)}
           {formatTimeRangeWIB(event.startTime, event.endTime) && (
             <> · {formatTimeRangeWIB(event.startTime, event.endTime)} WIB</>
           )}{" "}

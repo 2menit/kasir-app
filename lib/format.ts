@@ -37,6 +37,33 @@ export function formatDateWIB(date: Date | string): string {
   return formatInTimeZone(new Date(date), JAKARTA_TZ, "d MMM yyyy");
 }
 
+/**
+ * Smart date range in WIB:
+ * - Same day: "5 Jul 2026"
+ * - Same month: "5–7 Jul 2026"
+ * - Different month: "30 Jun – 2 Jul 2026"
+ */
+export function formatDateRangeWIB(
+  start: Date | string,
+  end: Date | string
+): string {
+  const s = new Date(start);
+  const e = new Date(end);
+  const sStr = formatInTimeZone(s, JAKARTA_TZ, "d MMM yyyy");
+  const eStr = formatInTimeZone(e, JAKARTA_TZ, "d MMM yyyy");
+  if (sStr === eStr) return sStr;
+  const sMonth = formatInTimeZone(s, JAKARTA_TZ, "MMM yyyy");
+  const eMonth = formatInTimeZone(e, JAKARTA_TZ, "MMM yyyy");
+  if (sMonth === eMonth) {
+    // Same month: "5–7 Jul 2026"
+    const sDay = formatInTimeZone(s, JAKARTA_TZ, "d");
+    return `${sDay}–${eStr}`;
+  }
+  // Different month: "30 Jun – 2 Jul 2026"
+  const sNoYear = formatInTimeZone(s, JAKARTA_TZ, "d MMM");
+  return `${sNoYear} – ${eStr}`;
+}
+
 /** ISO date (yyyy-MM-dd) in WIB — used for export filenames + form inputs. */
 export function isoDateWIB(date: Date | string): string {
   return formatInTimeZone(new Date(date), JAKARTA_TZ, "yyyy-MM-dd");

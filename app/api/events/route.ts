@@ -27,7 +27,7 @@ export const GET = handle(async (req: NextRequest) => {
   if (month >= 1 && month <= 12 && year >= 2000) {
     const start = new Date(Date.UTC(year, month - 1, 1));
     const end = new Date(Date.UTC(year, month, 1));
-    where.eventDate = { gte: start, lt: end };
+    where.eventDateStart = { gte: start, lt: end };
   }
 
   // USER sees only events they are crew on (CON-07 / REQ-U-04).
@@ -38,7 +38,7 @@ export const GET = handle(async (req: NextRequest) => {
   const isSuperadmin = me.role === "SUPERADMIN";
   const events = await prisma.event.findMany({
     where,
-    orderBy: { eventDate: "desc" },
+    orderBy: { eventDateStart: "desc" },
     include: {
       transactions: { select: { total: true } },
       _count: { select: { transactions: true, crew: true } },
@@ -54,7 +54,8 @@ export const GET = handle(async (req: NextRequest) => {
       id: e.id,
       name: e.name,
       location: e.location,
-      eventDate: e.eventDate,
+      eventDateStart: e.eventDateStart,
+      eventDateEnd: e.eventDateEnd,
       startTime: e.startTime,
       endTime: e.endTime,
       pricingType: e.pricingType,
@@ -74,12 +75,13 @@ export const POST = handle(async (req: NextRequest) => {
   await requireSuperadmin();
   const body = createEventSchema.parse(await req.json());
 
-  const dateStr = isoDateWIB(body.eventDate);
+  const dateStr = isoDateWIB(body.eventDateStart);
   const event = await prisma.event.create({
     data: {
       name: body.name,
       location: body.location,
-      eventDate: body.eventDate,
+      eventDateStart: body.eventDateStart,
+      eventDateEnd: body.eventDateEnd,
       startTime: combineWibDateTime(dateStr, body.startTime),
       endTime: combineWibDateTime(dateStr, body.endTime),
       pricingType: body.pricingType,

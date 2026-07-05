@@ -33,7 +33,8 @@ export default async function EditEventPage({
   const initial: EventFormInitial = {
     name: event.name,
     location: event.location,
-    eventDate: isoDateWIB(event.eventDate),
+    eventDateStart: isoDateWIB(event.eventDateStart),
+    eventDateEnd: isoDateWIB(event.eventDateEnd),
     startTime: event.startTime ? timeHHmmWIB(event.startTime) : "",
     endTime: event.endTime ? timeHHmmWIB(event.endTime) : "",
     pricingType: event.pricingType,

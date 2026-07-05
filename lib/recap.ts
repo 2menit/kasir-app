@@ -8,7 +8,8 @@ export type EventRecap = {
     id: string;
     name: string;
     location: string;
-    eventDate: Date;
+    eventDateStart: Date;
+    eventDateEnd: Date;
     startTime: Date | null;
     endTime: Date | null;
     pricingType: PricingType;
@@ -79,7 +80,8 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       id: event.id,
       name: event.name,
       location: event.location,
-      eventDate: event.eventDate,
+      eventDateStart: event.eventDateStart,
+      eventDateEnd: event.eventDateEnd,
       startTime: event.startTime,
       endTime: event.endTime,
       pricingType: event.pricingType,
@@ -123,7 +125,7 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
 export type PeriodRecapRow = {
   id: string;
   name: string;
-  eventDate: Date;
+  eventDateStart: Date;
   location: string;
   pricingType: PricingType;
   transactionCount: number;
@@ -171,9 +173,9 @@ async function buildPeriodRecap(
 ): Promise<PeriodRecap> {
   const events = await prisma.event.findMany({
     // Cancelled events are excluded from all financial aggregations.
-    where: { eventDate: { gte: start, lt: end }, status: { not: "CANCELLED" } },
+    where: { eventDateStart: { gte: start, lt: end }, status: { not: "CANCELLED" } },
     include: { transactions: true },
-    orderBy: { eventDate: "asc" },
+    orderBy: { eventDateStart: "asc" },
   });
 
   const rows: PeriodRecapRow[] = events.map((e) => {
@@ -192,7 +194,7 @@ async function buildPeriodRecap(
     return {
       id: e.id,
       name: e.name,
-      eventDate: e.eventDate,
+      eventDateStart: e.eventDateStart,
       location: e.location,
       pricingType: e.pricingType,
       transactionCount: e.transactions.length,
@@ -265,7 +267,7 @@ export async function getMonthlyDashboard(
   const { start, end } = monthRangeUtc(month, year);
   const events = await prisma.event.findMany({
     // Cancelled events are excluded from all financial aggregations.
-    where: { eventDate: { gte: start, lt: end }, status: { not: "CANCELLED" } },
+    where: { eventDateStart: { gte: start, lt: end }, status: { not: "CANCELLED" } },
     include: {
       transactions: { select: { total: true, printCount: true } },
       crew: { select: { userId: true } },
@@ -305,9 +307,9 @@ export async function getYearlyRevenue(
   const { end } = monthRangeUtc(12, year);
   const events = await prisma.event.findMany({
     // Cancelled events are excluded from all financial aggregations.
-    where: { eventDate: { gte: start, lt: end }, status: { not: "CANCELLED" } },
+    where: { eventDateStart: { gte: start, lt: end }, status: { not: "CANCELLED" } },
     select: {
-      eventDate: true,
+      eventDateStart: true,
       transactions: { select: { total: true } },
     },
   });
@@ -321,7 +323,7 @@ export async function getYearlyRevenue(
   for (const e of events) {
     // Group by WIB month of the event date.
     const wibMonth = Number(
-      formatInTimeZone(e.eventDate, JAKARTA_TZ, "M")
+      formatInTimeZone(e.eventDateStart, JAKARTA_TZ, "M")
     );
     const point = series[wibMonth - 1];
     if (point) {

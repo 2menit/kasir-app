@@ -57,7 +57,8 @@ model Event {
   id            String      @id @default(cuid())
   name          String
   location      String
-  eventDate     DateTime
+  eventDateStart DateTime
+  eventDateEnd   DateTime
   startTime     DateTime? // optional precise start (WIB)
   endTime       DateTime? // optional precise end (WIB)
   pricingType   PricingType @default(BIASA)

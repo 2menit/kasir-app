@@ -50,13 +50,14 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
   const attendance = body.attendance ?? {};
 
   await prisma.$transaction(async (tx) => {
-    const dateStr = isoDateWIB(body.eventDate);
+    const dateStr = isoDateWIB(body.eventDateStart);
     await tx.event.update({
       where: { id: params.id },
       data: {
         name: body.name,
         location: body.location,
-        eventDate: body.eventDate,
+        eventDateStart: body.eventDateStart,
+        eventDateEnd: body.eventDateEnd,
         startTime: combineWibDateTime(dateStr, body.startTime),
         endTime: combineWibDateTime(dateStr, body.endTime),
         pricingType: body.pricingType,

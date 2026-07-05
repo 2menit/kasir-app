@@ -21,7 +21,8 @@ export type CrewOption = { id: string; name: string };
 export type EventFormInitial = {
   name: string;
   location: string;
-  eventDate: string; // yyyy-MM-dd
+  eventDateStart: string; // yyyy-MM-dd
+  eventDateEnd: string; // yyyy-MM-dd
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   pricingType: "BIASA" | "PISAH";
@@ -39,7 +40,8 @@ export type EventFormInitial = {
 const blank: EventFormInitial = {
   name: "",
   location: "",
-  eventDate: "",
+  eventDateStart: "",
+  eventDateEnd: "",
   startTime: "",
   endTime: "",
   pricingType: "BIASA",
@@ -104,7 +106,8 @@ export function EventForm({
     const payload = {
       name: form.name,
       location: form.location,
-      eventDate: form.eventDate,
+      eventDateStart: form.eventDateStart,
+      eventDateEnd: form.eventDateEnd,
       startTime: form.startTime,
       endTime: form.endTime,
       pricingType: form.pricingType,
@@ -161,13 +164,23 @@ export function EventForm({
               placeholder="Gedung Graha Cakra, Malang"
             />
           </Field>
-          <Field label="Tanggal Event" error={errors.eventDate} required>
-            <Input
-              type="date"
-              value={form.eventDate}
-              onChange={(e) => set("eventDate", e.target.value)}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tanggal Mulai" error={errors.eventDateStart} required>
+              <Input
+                type="date"
+                value={form.eventDateStart}
+                onChange={(e) => set("eventDateStart", e.target.value)}
+              />
+            </Field>
+            <Field label="Tanggal Selesai" error={errors.eventDateEnd} required>
+              <Input
+                type="date"
+                value={form.eventDateEnd}
+                onChange={(e) => set("eventDateEnd", e.target.value)}
+                min={form.eventDateStart || undefined}
+              />
+            </Field>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Jam Mulai" error={errors.startTime}>
               <Input

@@ -66,7 +66,8 @@ async function main() {
     data: {
       name: "Wedding Rizal & Ayu",
       location: "Gedung Graha Cakra, Malang",
-      eventDate: now,
+      eventDateStart: now,
+      eventDateEnd: now,
       pricePerPrint: 15000,
       status: EventStatus.ONGOING,
       notes: "Booth utama di lobby.",
@@ -101,7 +102,8 @@ async function main() {
     data: {
       name: "Ulang Tahun ke-17 Dinda",
       location: "Hotel Santika, Surabaya",
-      eventDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      eventDateStart: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      eventDateEnd: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
       pricePerPrint: 10000,
       status: EventStatus.UPCOMING,
       crew: { create: [{ userId: crew[2]!.id }] },
@@ -112,7 +114,8 @@ async function main() {
     data: {
       name: "Gathering PT Maju Jaya",
       location: "Ballroom Whiz Prime, Malang",
-      eventDate: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000),
+      eventDateStart: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000),
+      eventDateEnd: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000),
       pricePerPrint: 20000,
       status: EventStatus.DONE,
       crew: {

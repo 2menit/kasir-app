@@ -11,7 +11,8 @@ export type EventListItem = {
   id: string;
   name: string;
   location: string;
-  eventDate: string;
+  eventDateStart: string;
+  eventDateEnd: string;
   startTime: string | null;
   endTime: string | null;
   pricingType: PricingType;
@@ -38,7 +39,7 @@ export function EventsBrowser({ events }: { events: EventListItem[] }) {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase()))
         return false;
       if (month) {
-        const m = new Date(e.eventDate).getMonth() + 1;
+        const m = new Date(e.eventDateStart).getMonth() + 1;
         if (String(m) !== month) return false;
       }
       return true;

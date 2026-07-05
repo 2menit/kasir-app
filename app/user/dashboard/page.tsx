@@ -12,14 +12,15 @@ export default async function UserDashboard() {
   const memberships = await prisma.eventCrew.findMany({
     where: { userId: me!.id },
     include: { event: true },
-    orderBy: { event: { eventDate: "desc" } },
+    orderBy: { event: { eventDateStart: "desc" } },
   });
 
   const events: EventCardData[] = memberships.map((m) => ({
     id: m.event.id,
     name: m.event.name,
     location: m.event.location,
-    eventDate: m.event.eventDate,
+    eventDateStart: m.event.eventDateStart,
+    eventDateEnd: m.event.eventDateEnd,
     startTime: m.event.startTime,
     endTime: m.event.endTime,
     pricingType: m.event.pricingType,

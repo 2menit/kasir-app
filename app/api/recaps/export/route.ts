@@ -43,7 +43,7 @@ export const GET = handle(async (req: NextRequest) => {
     if (!recap) return notFound("Event");
     const buffer = await buildEventWorkbook(recap);
     const filename = `recap_${slugify(recap.event.name)}_${isoDateWIB(
-      recap.event.eventDate
+      recap.event.eventDateStart
     )}.xlsx`;
     return xlsxResponse(buffer, filename);
   }

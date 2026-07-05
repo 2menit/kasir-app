@@ -5,7 +5,7 @@ import { getEventRecap } from "@/lib/recap";
 import {
   formatRupiah,
   formatNumber,
-  formatDateWIB,
+  formatDateRangeWIB,
   formatDateTimeWIB,
   formatTimeRangeWIB,
 } from "@/lib/format";
@@ -70,7 +70,7 @@ export default async function EventDetailPage({
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <div>
                 <dt className="text-muted">Tanggal</dt>
-                <dd className="font-medium">{formatDateWIB(event.eventDate)}</dd>
+                <dd className="font-medium">{formatDateRangeWIB(event.eventDateStart, event.eventDateEnd)}</dd>
               </div>
               <div>
                 <dt className="text-muted">Waktu</dt>

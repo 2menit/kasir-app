@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import {
   formatDateTimeWIB,
+  formatDateRangeWIB,
   formatDateWIB,
   formatTimeRangeWIB,
 } from "@/lib/format";
@@ -38,7 +39,7 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
   const timeRange = formatTimeRangeWIB(event.startTime, event.endTime);
   const summaryRows: [string, string | number][] = [
     ["Nama Event", event.name],
-    ["Tanggal", formatDateWIB(event.eventDate)],
+    ["Tanggal", formatDateRangeWIB(event.eventDateStart, event.eventDateEnd)],
     ["Waktu", timeRange ? `${timeRange} WIB` : "-"],
     ["Lokasi", event.location],
     ["Skema Harga", pricingLabel[event.pricingType]],
@@ -149,7 +150,7 @@ export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
     const row = s1.addRow({
       no: i + 1,
       name: r.name,
-      date: formatDateWIB(r.eventDate),
+      date: formatDateWIB(r.eventDateStart),
       location: r.location,
       scheme: r.pricingType === "PISAH" ? "Pisah" : "Biasa",
       txn: r.transactionCount,

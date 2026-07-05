@@ -4,14 +4,15 @@ import type { EventStatus, PricingType } from "@prisma/client";
 import { Card } from "@/components/ui/card";
 import { StatusBadge, PricingBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDateWIB, formatRupiah, formatTimeRangeWIB } from "@/lib/format";
+import { formatDateRangeWIB, formatRupiah, formatTimeRangeWIB } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type EventCardData = {
   id: string;
   name: string;
   location: string;
-  eventDate: Date | string;
+  eventDateStart: Date | string;
+  eventDateEnd: Date | string;
   startTime?: Date | string | null;
   endTime?: Date | string | null;
   pricingType: PricingType;
@@ -49,7 +50,7 @@ export function EventCard({
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-body">
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="h-4 w-4 text-muted" />
-              {formatDateWIB(event.eventDate)}
+              {formatDateRangeWIB(event.eventDateStart, event.eventDateEnd)}
             </span>
             {formatTimeRangeWIB(event.startTime ?? null, event.endTime ?? null) && (
               <span className="inline-flex items-center gap-1.5">

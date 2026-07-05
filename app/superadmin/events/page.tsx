@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
   const events = await prisma.event.findMany({
-    orderBy: { eventDate: "desc" },
+    orderBy: { eventDateStart: "desc" },
     include: { transactions: { select: { total: true } } },
   });
 
@@ -17,7 +17,8 @@ export default async function EventsPage() {
     id: e.id,
     name: e.name,
     location: e.location,
-    eventDate: e.eventDate.toISOString(),
+    eventDateStart: e.eventDateStart.toISOString(),
+    eventDateEnd: e.eventDateEnd.toISOString(),
     startTime: e.startTime?.toISOString() ?? null,
     endTime: e.endTime?.toISOString() ?? null,
     pricingType: e.pricingType,
