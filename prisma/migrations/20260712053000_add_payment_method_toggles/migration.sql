@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Event" ADD COLUMN "allowCash" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "Event" ADD COLUMN "allowQris" BOOLEAN NOT NULL DEFAULT true;
