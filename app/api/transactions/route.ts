@@ -62,6 +62,14 @@ export const POST = handle(async (req: NextRequest) => {
     return fail("Transaksi hanya bisa dilakukan saat event berlangsung", 403);
   }
 
+  // Validate the chosen payment method is allowed for this event.
+  if (body.paymentMethod === "CASH" && !event.allowCash) {
+    return fail("Metode pembayaran Tunai tidak tersedia untuk event ini", 400);
+  }
+  if (body.paymentMethod === "QRIS" && !event.allowQris) {
+    return fail("Metode pembayaran QRIS tidak tersedia untuk event ini", 400);
+  }
+
   // USER must be assigned to the event.
   if (me.role === "USER" && !(await isAssigned(body.eventId, me.id))) {
     return forbidden();

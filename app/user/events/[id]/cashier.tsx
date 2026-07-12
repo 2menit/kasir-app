@@ -35,6 +35,8 @@ export function Cashier({
   addOnEnabled,
   addOnName,
   addOnPrice,
+  allowCash,
+  allowQris,
   isOngoing,
   canEditAttendance,
   initialAttended,
@@ -47,6 +49,8 @@ export function Cashier({
   addOnEnabled: boolean;
   addOnName: string | null;
   addOnPrice: number | null;
+  allowCash: boolean;
+  allowQris: boolean;
   isOngoing: boolean;
   canEditAttendance: boolean;
   initialAttended: boolean;
@@ -56,7 +60,11 @@ export function Cashier({
   const [printCount, setPrintCount] = useState(1);
   const [addOnQty, setAddOnQty] = useState(0);
   const [copyOnly, setCopyOnly] = useState(false);
-  const [method, setMethod] = useState<PaymentMethod>("CASH");
+  const availableMethods: PaymentMethod[] = [
+    ...(allowCash ? ["CASH" as PaymentMethod] : []),
+    ...(allowQris ? ["QRIS" as PaymentMethod] : []),
+  ];
+  const [method, setMethod] = useState<PaymentMethod>(availableMethods[0] ?? "CASH");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<TxnView | null>(null);
@@ -121,7 +129,7 @@ export function Cashier({
     setAddOnQty(0);
     setCopyOnly(false);
     setNote("");
-    setMethod("CASH");
+    setMethod(availableMethods[0] ?? "CASH");
     toast.success("Transaksi tersimpan");
   }
 
@@ -282,8 +290,8 @@ export function Cashier({
               )}
 
               <Field label="Metode Pembayaran" required>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["CASH", "QRIS"] as PaymentMethod[]).map((m) => (
+                <div className={cn("grid gap-3", availableMethods.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                  {availableMethods.map((m) => (
                     <button
                       key={m}
                       type="button"

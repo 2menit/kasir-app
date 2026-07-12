@@ -90,6 +90,8 @@ export const POST = handle(async (req: NextRequest) => {
       addOnEnabled: body.addOnEnabled,
       addOnName: body.addOnEnabled ? (body.addOnName || "Add-on") : null,
       addOnPrice: body.addOnEnabled ? (body.addOnPrice ?? null) : null,
+      allowCash: body.allowCash,
+      allowQris: body.allowQris,
       status: body.status,
       notes: body.notes || null,
       crew: {

@@ -81,6 +81,9 @@ const eventBase = {
   addOnEnabled: z.boolean().optional().default(false),
   addOnName: z.string().trim().max(50).optional().or(z.literal("")),
   addOnPrice: z.union([priceField("Harga add-on"), z.null()]).optional(),
+  // Per-event payment method toggles
+  allowCash: z.boolean().optional().default(true),
+  allowQris: z.boolean().optional().default(true),
   notes: z.string().trim().max(1000).optional().or(z.literal("")),
   crewIds: z.array(z.string()).optional().default([]),
 };
@@ -134,6 +137,15 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
         code: z.ZodIssueCode.custom,
         path: ["endTime"],
         message: "Jam selesai harus setelah jam mulai",
+      });
+    }
+    // At least one payment method must be enabled
+    const vPay = val as { allowCash?: boolean; allowQris?: boolean };
+    if (!vPay.allowCash && !vPay.allowQris) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["allowCash"],
+        message: "Minimal satu metode pembayaran harus aktif",
       });
     }
   });

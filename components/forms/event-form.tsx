@@ -31,6 +31,8 @@ export type EventFormInitial = {
   addOnEnabled: boolean;
   addOnName: string;
   addOnPrice: number;
+  allowCash: boolean;
+  allowQris: boolean;
   status: string;
   notes: string;
   crewIds: string[];
@@ -50,6 +52,8 @@ const blank: EventFormInitial = {
   addOnEnabled: false,
   addOnName: "Gantungan Kunci",
   addOnPrice: 5000,
+  allowCash: true,
+  allowQris: true,
   status: "UPCOMING",
   notes: "",
   crewIds: [],
@@ -116,6 +120,8 @@ export function EventForm({
       addOnEnabled: form.addOnEnabled,
       addOnName: form.addOnName,
       addOnPrice: form.addOnEnabled ? Number(form.addOnPrice) : null,
+      allowCash: form.allowCash,
+      allowQris: form.allowQris,
       status: form.status,
       notes: form.notes,
       crewIds: form.crewIds,
@@ -317,6 +323,43 @@ export function EventForm({
               </Field>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Payment method toggles */}
+      <Card>
+        <CardContent>
+          <h3 className="text-base font-semibold tracking-display">
+            Metode Pembayaran
+          </h3>
+          <p className="mt-1 text-sm text-body">
+            Pilih metode pembayaran yang tersedia di event ini.
+          </p>
+          {!form.allowCash && !form.allowQris && (
+            <p className="mt-3 rounded-md border border-down/30 bg-down/5 px-4 py-2 text-sm font-medium text-down">
+              Minimal satu metode pembayaran harus aktif.
+            </p>
+          )}
+          <div className="mt-4 space-y-2">
+            <label className="flex cursor-pointer items-center justify-between rounded-md border border-hairline px-4 py-3">
+              <span className="font-medium">Tunai (Cash)</span>
+              <input
+                type="checkbox"
+                checked={form.allowCash}
+                onChange={(e) => set("allowCash", e.target.checked)}
+                className="h-5 w-5 accent-primary"
+              />
+            </label>
+            <label className="flex cursor-pointer items-center justify-between rounded-md border border-hairline px-4 py-3">
+              <span className="font-medium">QRIS</span>
+              <input
+                type="checkbox"
+                checked={form.allowQris}
+                onChange={(e) => set("allowQris", e.target.checked)}
+                className="h-5 w-5 accent-primary"
+              />
+            </label>
+          </div>
         </CardContent>
       </Card>
 

@@ -68,6 +68,9 @@ model Event {
   addOnEnabled  Boolean     @default(false)
   addOnName     String?
   addOnPrice    Int?
+  // Per-event payment method toggles (superadmin configurable)
+  allowCash     Boolean     @default(true)
+  allowQris     Boolean     @default(true)
   status        EventStatus @default(UPCOMING)
   notes         String?
   createdAt     DateTime    @default(now())

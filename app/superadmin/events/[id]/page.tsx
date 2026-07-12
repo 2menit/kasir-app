@@ -108,6 +108,24 @@ export default async function EventDetailPage({
                   Tunai {formatRupiah(totals.cashRevenue)} · QRIS{" "}
                   {formatRupiah(totals.qrisRevenue)}
                 </dd>
+                <dd className="mt-1 flex gap-2 text-sm">
+                  <span className={cn(
+                    "inline-flex items-center rounded-pill px-2 py-0.5 font-medium",
+                    event.allowCash
+                      ? "bg-up/10 text-up"
+                      : "bg-surface-strong text-muted line-through"
+                  )}>
+                    Tunai {event.allowCash ? "✓" : "✗"}
+                  </span>
+                  <span className={cn(
+                    "inline-flex items-center rounded-pill px-2 py-0.5 font-medium",
+                    event.allowQris
+                      ? "bg-up/10 text-up"
+                      : "bg-surface-strong text-muted line-through"
+                  )}>
+                    QRIS {event.allowQris ? "✓" : "✗"}
+                  </span>
+                </dd>
               </div>
               {event.addOnEnabled && (
                 <div className="col-span-2">

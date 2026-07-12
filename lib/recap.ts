@@ -18,6 +18,8 @@ export type EventRecap = {
     addOnEnabled: boolean;
     addOnName: string | null;
     addOnPrice: number | null;
+    allowCash: boolean;
+    allowQris: boolean;
     status: EventStatus;
     notes: string | null;
   };
@@ -90,6 +92,8 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       addOnEnabled: event.addOnEnabled,
       addOnName: event.addOnName,
       addOnPrice: event.addOnPrice,
+      allowCash: event.allowCash,
+      allowQris: event.allowQris,
       status: event.status,
       notes: event.notes,
     },

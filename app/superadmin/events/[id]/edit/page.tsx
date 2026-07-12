@@ -43,6 +43,8 @@ export default async function EditEventPage({
     addOnEnabled: event.addOnEnabled,
     addOnName: event.addOnName ?? "Gantungan Kunci",
     addOnPrice: event.addOnPrice ?? 5000,
+    allowCash: event.allowCash,
+    allowQris: event.allowQris,
     status: event.status,
     notes: event.notes ?? "",
     crewIds: event.crew.map((c) => c.userId),

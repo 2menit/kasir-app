@@ -76,6 +76,8 @@ export default async function UserEventPage({
         addOnEnabled={event.addOnEnabled}
         addOnName={event.addOnName}
         addOnPrice={event.addOnPrice}
+        allowCash={event.allowCash}
+        allowQris={event.allowQris}
         isOngoing={event.status === "ONGOING"}
         canEditAttendance={
           event.status !== "DONE" && event.status !== "CANCELLED"
