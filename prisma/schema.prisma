@@ -15,6 +15,7 @@ datasource db {
 
 enum Role {
   SUPERADMIN
+  ADMIN
   USER
 }
 
@@ -41,6 +42,10 @@ model User {
   username  String   @unique
   password  String // bcrypt hash (rounds = 12)
   role      Role     @default(USER)
+
+  // City assignment: null for SUPERADMIN, required for ADMIN & USER
+  cityId    String?
+  city      City?    @relation(fields: [cityId], references: [id], onDelete: SetNull)
 
   // Login-lockout state (REQ-AUTH-01: 5 failed attempts -> lock 15 min)
   failedLoginAttempts Int       @default(0)
@@ -73,6 +78,11 @@ model Event {
   allowQris     Boolean     @default(true)
   status        EventStatus @default(UPCOMING)
   notes         String?
+
+  // City tag: required for all new events, backfilled to Jember for existing
+  cityId        String?
+  city          City?       @relation(fields: [cityId], references: [id], onDelete: SetNull)
+
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -110,4 +120,14 @@ model Transaction {
 
   @@index([eventId, createdAt])
   @@index([userId])
+}
+
+model City {
+  id        String   @id @default(cuid())
+  name      String   @unique // e.g. "Jember", "Jakarta"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users  User[]  // admin & crew assigned to this city
+  events Event[] // events tagged to this city
 }
