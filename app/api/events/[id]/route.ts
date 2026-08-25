@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ok, fail, notFound, forbidden, handle } from "@/lib/api";
-import { requireUser, requireSuperadmin } from "@/lib/session";
+import { requireUser, requireAdminOrSuperadmin } from "@/lib/session";
 import { updateEventSchema } from "@/lib/validations";
 import { isoDateWIB, combineWibDateTime } from "@/lib/format";
 
@@ -28,13 +28,18 @@ export const GET = handle(async (_req: NextRequest, { params }: Ctx) => {
   if (me.role === "USER" && !event.crew.some((c) => c.userId === me.id)) {
     return forbidden();
   }
+  
+  // ADMIN may only view events in their city.
+  if (me.role === "ADMIN" && event.cityId !== me.cityId) {
+    return forbidden();
+  }
 
   return ok(event);
 });
 
-// PUT /api/events/:id — [superadmin] edit event + crew + attendance
+// PUT /api/events/:id — [admin, superadmin] edit event + crew + attendance
 export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
-  await requireSuperadmin();
+  const me = await requireAdminOrSuperadmin();
   const body = updateEventSchema.parse(await req.json());
 
   const event = await prisma.event.findUnique({
@@ -42,6 +47,17 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
     include: { crew: true },
   });
   if (!event) return notFound("Event");
+
+  if (me.role === "ADMIN" && event.cityId !== me.cityId) {
+    return forbidden();
+  }
+
+  let cityId = body.cityId;
+  if (me.role === "ADMIN") {
+    cityId = me.cityId || undefined;
+  } else if (me.role === "SUPERADMIN" && !cityId) {
+    return fail("Superadmin wajib memilih kota saat mengubah event.", 400);
+  }
 
   const desiredCrew = new Set(body.crewIds ?? []);
   const currentCrew = new Set(event.crew.map((c) => c.userId));
@@ -71,6 +87,7 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
         allowQris: body.allowQris,
         status: body.status,
         notes: body.notes || null,
+        cityId: cityId || null,
       },
     });
 
@@ -102,16 +119,20 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
   return ok({ id: params.id });
 });
 
-// DELETE /api/events/:id — [superadmin] delete event ONLY if it has no
+// DELETE /api/events/:id — [admin, superadmin] delete event ONLY if it has no
 // transactions (protects financial history; otherwise use CANCELLED status).
 export const DELETE = handle(async (_req: NextRequest, { params }: Ctx) => {
-  await requireSuperadmin();
+  const me = await requireAdminOrSuperadmin();
 
   const event = await prisma.event.findUnique({
     where: { id: params.id },
     include: { _count: { select: { transactions: true } } },
   });
   if (!event) return notFound("Event");
+
+  if (me.role === "ADMIN" && event.cityId !== me.cityId) {
+    return forbidden();
+  }
 
   if (event._count.transactions > 0) {
     return fail(

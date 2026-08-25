@@ -12,6 +12,10 @@ export default async function CreateEventPage() {
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+  const cities = await prisma.city.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -22,7 +26,7 @@ export default async function CreateEventPage() {
         <ArrowLeft className="h-4 w-4" /> Kembali ke daftar event
       </Link>
       <PageHeader title="Buat Event" description="Tambahkan event photobooth baru." />
-      <EventForm mode="create" crewOptions={crew} />
+      <EventForm mode="create" crewOptions={crew} cityOptions={cities} />
     </div>
   );
 }

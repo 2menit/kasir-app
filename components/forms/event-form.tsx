@@ -17,6 +17,7 @@ const STATUSES: { value: string; label: string }[] = [
 ];
 
 export type CrewOption = { id: string; name: string };
+export type CityOption = { id: string; name: string };
 
 export type EventFormInitial = {
   name: string;
@@ -37,6 +38,7 @@ export type EventFormInitial = {
   notes: string;
   crewIds: string[];
   attendance: Record<string, boolean>;
+  cityId?: string;
 };
 
 const blank: EventFormInitial = {
@@ -58,17 +60,20 @@ const blank: EventFormInitial = {
   notes: "",
   crewIds: [],
   attendance: {},
+  cityId: "",
 };
 
 export function EventForm({
   mode,
   eventId,
   crewOptions,
+  cityOptions,
   initial,
 }: {
   mode: "create" | "edit";
   eventId?: string;
   crewOptions: CrewOption[];
+  cityOptions?: CityOption[];
   initial?: EventFormInitial;
 }) {
   const router = useRouter();
@@ -125,6 +130,7 @@ export function EventForm({
       status: form.status,
       notes: form.notes,
       crewIds: form.crewIds,
+      cityId: form.cityId || undefined,
       ...(mode === "edit" ? { attendance: form.attendance } : {}),
     };
 
@@ -163,6 +169,21 @@ export function EventForm({
               placeholder="Wedding Rizal & Ayu"
             />
           </Field>
+          {cityOptions && cityOptions.length > 0 && (
+            <Field label="Kota" error={errors.cityId} required>
+              <Select
+                value={form.cityId || ""}
+                onChange={(e) => set("cityId", e.target.value)}
+              >
+                <option value="" disabled>Pilih Kota</option>
+                {cityOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label="Lokasi" error={errors.location} required>
             <Input
               value={form.location}

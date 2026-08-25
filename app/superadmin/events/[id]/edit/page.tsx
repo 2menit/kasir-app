@@ -13,13 +13,17 @@ export default async function EditEventPage({
 }: {
   params: { id: string };
 }) {
-  const [event, crew] = await Promise.all([
+  const [event, crew, cities] = await Promise.all([
     prisma.event.findUnique({
       where: { id: params.id },
       include: { crew: true },
     }),
     prisma.user.findMany({
       where: { role: "USER" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.city.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
@@ -49,6 +53,7 @@ export default async function EditEventPage({
     notes: event.notes ?? "",
     crewIds: event.crew.map((c) => c.userId),
     attendance,
+    cityId: event.cityId || "",
   };
 
   return (
@@ -64,6 +69,7 @@ export default async function EditEventPage({
         mode="edit"
         eventId={event.id}
         crewOptions={crew}
+        cityOptions={cities}
         initial={initial}
       />
     </div>

@@ -17,8 +17,11 @@ export type EventListItem = {
   endTime: string | null;
   pricingType: PricingType;
   status: EventStatus;
+  cityId: string | null;
   revenue: number;
 };
+
+type CityOption = { id: string; name: string };
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Semua status" },
@@ -28,10 +31,17 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "CANCELLED", label: "Dibatalkan" },
 ];
 
-export function EventsBrowser({ events }: { events: EventListItem[] }) {
+export function EventsBrowser({ 
+  events, 
+  cities 
+}: { 
+  events: EventListItem[];
+  cities?: CityOption[]; 
+}) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [month, setMonth] = useState("");
+  const [cityId, setCityId] = useState("");
 
   const filtered = useMemo(() => {
     return events.filter((e) => {
@@ -42,9 +52,10 @@ export function EventsBrowser({ events }: { events: EventListItem[] }) {
         const m = new Date(e.eventDateStart).getMonth() + 1;
         if (String(m) !== month) return false;
       }
+      if (cityId && e.cityId !== cityId) return false;
       return true;
     });
-  }, [events, search, status, month]);
+  }, [events, search, status, month, cityId]);
 
   return (
     <div className="space-y-4">
@@ -81,6 +92,20 @@ export function EventsBrowser({ events }: { events: EventListItem[] }) {
             </option>
           ))}
         </Select>
+        {cities && cities.length > 0 && (
+          <Select
+            value={cityId}
+            onChange={(e) => setCityId(e.target.value)}
+            className="sm:w-44"
+          >
+            <option value="">Semua kota</option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       {filtered.length === 0 ? (

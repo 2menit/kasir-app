@@ -8,10 +8,16 @@ import { EventsBrowser, type EventListItem } from "./events-browser";
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const events = await prisma.event.findMany({
-    orderBy: { eventDateStart: "desc" },
-    include: { transactions: { select: { total: true } } },
-  });
+  const [events, cities] = await Promise.all([
+    prisma.event.findMany({
+      orderBy: { eventDateStart: "desc" },
+      include: { transactions: { select: { total: true } } },
+    }),
+    prisma.city.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   const items: EventListItem[] = events.map((e) => ({
     id: e.id,
@@ -23,6 +29,7 @@ export default async function EventsPage() {
     endTime: e.endTime?.toISOString() ?? null,
     pricingType: e.pricingType,
     status: e.status,
+    cityId: e.cityId,
     revenue: e.transactions.reduce((s, t) => s + t.total, 0),
   }));
 
@@ -39,7 +46,7 @@ export default async function EventsPage() {
           </Link>
         }
       />
-      <EventsBrowser events={items} />
+      <EventsBrowser events={items} cities={cities} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import type { Prisma, EventStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ok, handle } from "@/lib/api";
-import { requireUser, requireSuperadmin } from "@/lib/session";
+import { requireUser, requireAdminOrSuperadmin, HttpError } from "@/lib/session";
 import { createEventSchema } from "@/lib/validations";
 import { isoDateWIB, combineWibDateTime } from "@/lib/format";
 
@@ -33,9 +33,17 @@ export const GET = handle(async (req: NextRequest) => {
   // USER sees only events they are crew on (CON-07 / REQ-U-04).
   if (me.role === "USER") {
     where.crew = { some: { userId: me.id } };
+  } else if (me.role === "ADMIN") {
+    // Admin only sees their own city events
+    where.cityId = me.cityId;
+  } else {
+    // Superadmin can filter by city
+    const city = searchParams.get("city");
+    if (city) where.cityId = city;
   }
 
   const isSuperadmin = me.role === "SUPERADMIN";
+  const isAdmin = me.role === "ADMIN";
   const events = await prisma.event.findMany({
     where,
     orderBy: { eventDateStart: "desc" },
@@ -46,8 +54,8 @@ export const GET = handle(async (req: NextRequest) => {
   });
 
   const data = events.map((e) => {
-    // Revenue is exposed to superadmin only (CON-07).
-    const revenue = isSuperadmin
+    // Revenue is exposed to admin and superadmin
+    const revenue = (isSuperadmin || isAdmin)
       ? e.transactions.reduce((sum, t) => sum + t.total, 0)
       : undefined;
     return {
@@ -63,6 +71,7 @@ export const GET = handle(async (req: NextRequest) => {
       status: e.status,
       transactionCount: e._count.transactions,
       crewCount: e._count.crew,
+      cityId: e.cityId,
       ...(revenue !== undefined ? { revenue } : {}),
     };
   });
@@ -70,10 +79,17 @@ export const GET = handle(async (req: NextRequest) => {
   return ok(data);
 });
 
-// POST /api/events — [superadmin] create event
+// POST /api/events — [admin, superadmin] create event
 export const POST = handle(async (req: NextRequest) => {
-  await requireSuperadmin();
+  const me = await requireAdminOrSuperadmin();
   const body = createEventSchema.parse(await req.json());
+
+  let cityId = body.cityId;
+  if (me.role === "ADMIN") {
+    cityId = me.cityId || undefined; // Auto-tag
+  } else if (me.role === "SUPERADMIN" && !cityId) {
+    throw new HttpError(400, "Superadmin wajib memilih kota saat membuat event.");
+  }
 
   const dateStr = isoDateWIB(body.eventDateStart);
   const event = await prisma.event.create({
@@ -94,6 +110,7 @@ export const POST = handle(async (req: NextRequest) => {
       allowQris: body.allowQris,
       status: body.status,
       notes: body.notes || null,
+      cityId: cityId || null,
       crew: {
         create: (body.crewIds ?? []).map((userId) => ({ userId })),
       },
