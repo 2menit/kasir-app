@@ -44,7 +44,11 @@ export function AppShell({
             >
               <p className="text-sm font-semibold leading-tight">{user.name}</p>
               <p className="text-xs text-muted">
-                {user.role === "SUPERADMIN" ? "Superadmin" : "Crew"}
+                {user.role === "SUPERADMIN"
+                  ? "Superadmin"
+                  : user.role === "ADMIN"
+                    ? "Admin Cabang"
+                    : "Crew"}
               </p>
             </Link>
             <ThemeToggle />
