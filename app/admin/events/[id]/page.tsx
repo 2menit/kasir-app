@@ -104,7 +104,7 @@ export default async function AdminEventDetailPage({
                             <div>
                                 <dt className="text-muted">Skema Harga</dt>
                                 <dd className="font-medium">
-                                    {pricingLabel(event.pricingType)}
+                                    {pricingLabel[event.pricingType]}
                                 </dd>
                             </div>
                             {event.notes && (
