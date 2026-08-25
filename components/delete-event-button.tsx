@@ -11,9 +11,11 @@ import { apiFetch } from "@/lib/client";
 export function DeleteEventButton({
   eventId,
   transactionCount,
+  redirectTo = "/superadmin/events",
 }: {
   eventId: string;
   transactionCount: number;
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -30,7 +32,7 @@ export function DeleteEventButton({
       return;
     }
     toast.success("Event dihapus");
-    router.push("/superadmin/events");
+    router.push(redirectTo);
     router.refresh();
   }
 

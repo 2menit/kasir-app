@@ -69,12 +69,14 @@ export function EventForm({
   crewOptions,
   cityOptions,
   initial,
+  redirectAfterTo,
 }: {
   mode: "create" | "edit";
   eventId?: string;
   crewOptions: CrewOption[];
   cityOptions?: CityOption[];
   initial?: EventFormInitial;
+  redirectAfterTo?: string;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<EventFormInitial>(initial ?? blank);
@@ -152,8 +154,9 @@ export function EventForm({
       return;
     }
     toast.success(mode === "create" ? "Event dibuat" : "Event diperbarui");
+    const base = redirectAfterTo ?? (mode === "create" ? "/superadmin/events" : `/superadmin/events/${eventId}`);
     router.push(
-      mode === "create" ? "/superadmin/events" : `/superadmin/events/${eventId}`
+      mode === "create" ? base : (redirectAfterTo ? `${redirectAfterTo}/${eventId}` : base)
     );
     router.refresh();
   }
