@@ -37,3 +37,10 @@ dev.log
 
 .mcp.json
 deploy.md
+
+# hermes/claude local config
+.claude/
+
+# internal planning docs (not for public repo)
+IMPLEMENTATION_PLAN_MULTI_CABANG.md
+TASKS_MULTI_CABANG.md
