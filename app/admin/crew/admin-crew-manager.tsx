@@ -1,62 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input, Select } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageHeader } from "@/components/kpi-card";
 import { apiFetch } from "@/lib/client";
 import { formatDateWIB } from "@/lib/format";
-import type { CityOption } from "@/components/forms/event-form";
 
-export type UserRow = {
+export type AdminUserRow = {
   id: string;
   name: string;
   username: string;
   role: string;
-  cityId: string | null;
   cityName: string | null;
   createdAt: string;
 };
 
-type FormState = {
-  name: string;
-  username: string;
-  password: string;
-  cityId: string;
-};
+type FormState = { name: string; username: string; password: string };
+const empty: FormState = { name: "", username: "", password: "" };
 
-const empty: FormState = { name: "", username: "", password: "", cityId: "" };
-
-export function UsersManager({
+export function AdminCrewManager({
   initialUsers,
   currentUserId,
-  cities,
+  cityName,
 }: {
-  initialUsers: UserRow[];
+  initialUsers: AdminUserRow[];
   currentUserId: string;
-  cities: CityOption[];
+  cityName: string | null;
 }) {
   const [users, setUsers] = useState(initialUsers);
-  const [editing, setEditing] = useState<UserRow | null>(null);
+  const [editing, setEditing] = useState<AdminUserRow | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [cityFilter, setCityFilter] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!cityFilter) return users;
-    return users.filter((u) => u.cityId === cityFilter);
-  }, [users, cityFilter]);
 
   function openCreate() {
     setEditing(null);
@@ -65,20 +48,15 @@ export function UsersManager({
     setShowForm(true);
   }
 
-  function openEdit(u: UserRow) {
+  function openEdit(u: AdminUserRow) {
     setEditing(u);
-    setForm({
-      name: u.name,
-      username: u.username,
-      password: "",
-      cityId: u.cityId ?? "",
-    });
+    setForm({ name: u.name, username: u.username, password: "" });
     setErrors({});
     setShowForm(true);
   }
 
   async function refresh() {
-    const res = await apiFetch<UserRow[]>("/api/users");
+    const res = await apiFetch<AdminUserRow[]>("/api/users");
     if (res.success) setUsers(res.data);
   }
 
@@ -103,54 +81,21 @@ export function UsersManager({
     await refresh();
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const res = await apiFetch(`/api/users/${deleteTarget.id}`, {
-      method: "DELETE",
-    });
-    setDeleting(false);
-    if (!res.success) {
-      toast.error(res.error);
-      return;
-    }
-    toast.success("Crew dihapus");
-    setDeleteTarget(null);
-    await refresh();
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Manajemen Crew"
-        description="Kelola akun crew (kasir) di semua cabang."
+        description={
+          cityName
+            ? `Kelola akun crew di cabang ${cityName}.`
+            : "Kelola akun crew di cabang Anda."
+        }
         action={
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" /> Tambah Crew
           </Button>
         }
       />
-
-      {cities.length > 0 && (
-        <div className="flex items-center gap-3">
-          <Field label="Filter kota" className="w-48">
-            <Select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-            >
-              <option value="">Semua kota</option>
-              {cities.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <span className="text-sm text-muted">
-            {filtered.length} crew
-          </span>
-        </div>
-      )}
 
       <Card>
         <Table>
@@ -164,7 +109,7 @@ export function UsersManager({
             </TR>
           </THead>
           <TBody>
-            {filtered.map((u) => (
+            {users.map((u) => (
               <TR key={u.id}>
                 <TD className="font-medium">{u.name}</TD>
                 <TD className="font-mono text-sm">{u.username}</TD>
@@ -188,16 +133,6 @@ export function UsersManager({
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    {u.id !== currentUserId && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setDeleteTarget(u)}
-                        title="Hapus"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
                 </TD>
               </TR>
@@ -248,23 +183,6 @@ export function UsersManager({
                   placeholder="••••••••"
                 />
               </Field>
-              {!editing && (
-                <Field label="Kota" error={errors.cityId} required>
-                  <Select
-                    value={form.cityId}
-                    onChange={(e) =>
-                      setForm({ ...form, cityId: e.target.value })
-                    }
-                  >
-                    <option value="">Pilih kota</option>
-                    {cities.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              )}
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
@@ -281,15 +199,6 @@ export function UsersManager({
           </Card>
         </div>
       )}
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="Hapus crew?"
-        description={`Akun ${deleteTarget?.name ?? ""} akan dihapus. Riwayat transaksi tetap tersimpan.`}
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onClose={() => setDeleteTarget(null)}
-      />
     </div>
   );
 }

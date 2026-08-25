@@ -31,10 +31,13 @@ export const loginSchema = z.object({
 });
 
 // ── Users ────────────────────────────────────────────────────────────────────
+// cityId optional on create — superadmin picks the city; admin's cityId is
+// auto-assigned server-side (see app/api/users/route.ts).
 export const createUserSchema = z.object({
   name,
   username,
   password,
+  cityId: z.string().trim().min(1, "Kota wajib dipilih").optional(),
 });
 
 export const updateUserSchema = z.object({
