@@ -7,6 +7,7 @@ export type SessionUser = {
   name: string;
   username: string;
   role: Role;
+  cityId: string | null;
 };
 
 /** Returns the current session user or null. */
@@ -40,3 +41,13 @@ export async function requireRole(role: Role): Promise<SessionUser> {
 }
 
 export const requireSuperadmin = () => requireRole("SUPERADMIN");
+export const requireAdmin = () => requireRole("ADMIN");
+
+/** Require either ADMIN or SUPERADMIN (API context). Throws 401/403. */
+export async function requireAdminOrSuperadmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN" && user.role !== "SUPERADMIN") {
+    throw new HttpError(403, "Akses ditolak");
+  }
+  return user;
+}

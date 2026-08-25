@@ -77,6 +77,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           username: user.username,
           role: user.role,
+          cityId: user.cityId,
         };
       },
     }),
@@ -88,6 +89,7 @@ export const authOptions: NextAuthOptions = {
         token.username = user.username;
         token.role = user.role;
         token.name = user.name;
+        token.cityId = user.cityId;
       }
       return token;
     },
@@ -97,6 +99,7 @@ export const authOptions: NextAuthOptions = {
         name: token.name as string,
         username: token.username,
         role: token.role,
+        cityId: token.cityId as string | null,
       };
       return session;
     },

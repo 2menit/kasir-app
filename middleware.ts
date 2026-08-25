@@ -16,6 +16,9 @@ export default withAuth(
     if (pathname.startsWith("/superadmin") && role !== "SUPERADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+    if (pathname.startsWith("/admin") && role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
     if (pathname.startsWith("/user") && role !== "USER") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
@@ -30,5 +33,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/dashboard", "/superadmin/:path*", "/user/:path*"],
+  matcher: ["/dashboard", "/superadmin/:path*", "/admin/:path*", "/user/:path*"],
 };

@@ -5,6 +5,7 @@ import type { NavItem } from "@/components/nav-links";
 
 const nav: NavItem[] = [
   { href: "/superadmin/dashboard", label: "Dashboard" },
+  { href: "/superadmin/cities", label: "Kota" },
   { href: "/superadmin/events", label: "Event" },
   { href: "/superadmin/users", label: "Crew" },
   { href: "/superadmin/recaps", label: "Rekap" },
