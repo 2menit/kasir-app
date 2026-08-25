@@ -18,6 +18,7 @@ type Row = {
   eventDateStart: string;
   location: string;
   pricingType: "BIASA" | "PISAH";
+  cityName: string | null;
   transactionCount: number;
   totalPrints: number;
   totalRevenue: number;
@@ -38,18 +39,22 @@ type PeriodRecap = {
 };
 
 type Mode = "monthly" | "quarterly";
+type CityOption = { id: string; name: string };
 
 export function RecapViewer({
   defaultMonth,
   defaultYear,
+  cities,
 }: {
   defaultMonth: number;
   defaultYear: number;
+  cities?: CityOption[];
 }) {
   const [mode, setMode] = useState<Mode>("monthly");
   const [month, setMonth] = useState(defaultMonth);
   const [quarter, setQuarter] = useState(Math.ceil(defaultMonth / 3));
   const [year, setYear] = useState(defaultYear);
+  const [cityId, setCityId] = useState("");
   const [data, setData] = useState<PeriodRecap | null>(null);
   const [loading, setLoading] = useState(false);
   const [yearly, setYearly] = useState<RevenuePoint[]>([]);
@@ -58,10 +63,11 @@ export function RecapViewer({
 
   const load = useCallback(async () => {
     setLoading(true);
+    const cityParam = cityId ? `&city=${encodeURIComponent(cityId)}` : "";
     const query =
       mode === "monthly"
-        ? `month=${month}&year=${year}`
-        : `quarter=${quarter}&year=${year}`;
+        ? `month=${month}&year=${year}${cityParam}`
+        : `quarter=${quarter}&year=${year}${cityParam}`;
     const res = await apiFetch<PeriodRecap>(`/api/recaps/monthly?${query}`);
     setLoading(false);
     if (!res.success) {
@@ -69,27 +75,32 @@ export function RecapViewer({
       return;
     }
     setData(res.data);
-  }, [mode, month, quarter, year]);
+  }, [mode, month, quarter, year, cityId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // Yearly revenue series for the chart — refetched only when the year changes.
+  // Yearly revenue series for the chart — refetched only when year or city changes.
   useEffect(() => {
     let active = true;
-    apiFetch<RevenuePoint[]>(`/api/recaps/yearly?year=${year}`).then((res) => {
-      if (active && res.success) setYearly(res.data);
+    const cityParam = cityId ? `&city=${encodeURIComponent(cityId)}` : "";
+    apiFetch<RevenuePoint[]>(`/api/recaps/yearly?year=${year}${cityParam}`).then((res) => {
+      if (!active) return;
+      if (res.success) setYearly(res.data);
+      else setYearly([]);
     });
     return () => {
       active = false;
     };
-  }, [year]);
+  }, [year, cityId]);
 
-  const exportHref =
-    mode === "monthly"
-      ? `/api/recaps/export?type=monthly&month=${month}&year=${year}`
-      : `/api/recaps/export?type=quarterly&quarter=${quarter}&year=${year}`;
+  const exportHref = (() => {
+    const cityParam = cityId ? `&city=${encodeURIComponent(cityId)}` : "";
+    return mode === "monthly"
+      ? `/api/recaps/export?type=monthly&month=${month}&year=${year}${cityParam}`
+      : `/api/recaps/export?type=quarterly&quarter=${quarter}&year=${year}${cityParam}`;
+  })();
 
   return (
     <div className="space-y-6">
@@ -139,13 +150,29 @@ export function RecapViewer({
             </Select>
           </Field>
 
+          {cities && cities.length > 0 && (
+            <Field label="Kota" className="w-44">
+              <Select
+                value={cityId}
+                onChange={(e) => setCityId(e.target.value)}
+              >
+                <option value="">Semua kota</option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+
           <div className="ml-auto">
             <DownloadRecapButton href={exportHref} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Yearly revenue chart (driven by selected year) */}
+      {/* Yearly revenue chart (driven by selected year + city) */}
       <Card>
         <CardContent>
           <div className="mb-4 flex items-center justify-between">
@@ -160,64 +187,60 @@ export function RecapViewer({
         </CardContent>
       </Card>
 
+      {/* Period recap table + KPIs */}
       {data && (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               label="Total Pendapatan"
               value={formatRupiah(data.totals.totalRevenue)}
-              sub={data.label}
-            />
-            <KpiCard label="Tunai" value={formatRupiah(data.totals.cashRevenue)} />
-            <KpiCard label="QRIS" value={formatRupiah(data.totals.qrisRevenue)} />
-            <KpiCard
-              label="Add-on"
-              value={formatRupiah(data.totals.addOnRevenue)}
             />
             <KpiCard
-              label="Total Event"
-              value={formatNumber(data.totals.eventCount)}
-            />
-            <KpiCard
-              label="Total Transaksi"
+              label="Transaksi"
               value={formatNumber(data.totals.transactionCount)}
+            />
+            <KpiCard
+              label="Total Cetak"
+              value={formatNumber(data.totals.totalPrints)}
+            />
+            <KpiCard
+              label="Event"
+              value={formatNumber(data.totals.eventCount)}
             />
           </div>
 
           <Card>
             <CardContent>
               <h2 className="mb-4 text-base font-semibold tracking-display">
-                Rincian Event — {data.label}
+                Rincian per Event — {data.label}
               </h2>
               {data.rows.length === 0 ? (
-                <p className="rounded-md border border-dashed border-hairline p-8 text-center text-sm text-muted">
-                  {loading ? "Memuat…" : "Tidak ada event pada periode ini."}
+                <p className="rounded-xl border border-dashed border-hairline p-10 text-center text-sm text-muted">
+                  Tidak ada transaksi pada periode ini.
                 </p>
               ) : (
                 <Table>
                   <THead>
                     <TR>
-                      <TH className="w-12">No.</TH>
                       <TH>Event</TH>
-                      <TH>Tanggal</TH>
                       <TH>Lokasi</TH>
-                      <TH>Skema</TH>
+                      <TH>Kota</TH>
+                      <TH>Mulai</TH>
                       <TH className="text-right">Transaksi</TH>
-                      <TH className="text-right">Print</TH>
+                      <TH className="text-right">Cetak</TH>
                       <TH className="text-right">Pendapatan</TH>
                     </TR>
                   </THead>
                   <TBody>
-                    {data.rows.map((r, i) => (
+                    {data.rows.map((r) => (
                       <TR key={r.id}>
-                        <TD className="text-muted">{i + 1}</TD>
                         <TD className="font-medium">{r.name}</TD>
-                        <TD className="whitespace-nowrap">
-                          {formatDateWIB(r.eventDateStart)}
+                        <TD className="text-sm">{r.location}</TD>
+                        <TD className="text-sm">
+                          {r.cityName ?? "—"}
                         </TD>
-                        <TD className="text-body">{r.location}</TD>
-                        <TD className="text-body">
-                          {r.pricingType === "PISAH" ? "Pisah" : "Biasa"}
+                        <TD className="text-sm text-muted">
+                          {formatDateWIB(r.eventDateStart)}
                         </TD>
                         <TD className="text-right font-mono tabular-nums">
                           {formatNumber(r.transactionCount)}
@@ -233,7 +256,6 @@ export function RecapViewer({
                     <TR className="border-t-2 border-hairline font-semibold">
                       <TD />
                       <TD>TOTAL</TD>
-                      <TD />
                       <TD />
                       <TD />
                       <TD className="text-right font-mono tabular-nums">

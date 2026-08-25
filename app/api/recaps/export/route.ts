@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { fail, notFound, handle } from "@/lib/api";
-import { requireSuperadmin } from "@/lib/session";
+import { fail, forbidden, notFound, handle } from "@/lib/api";
+import { requireAdminOrSuperadmin } from "@/lib/session";
 import {
   getEventRecap,
   getMonthlyRecap,
@@ -32,15 +32,24 @@ function xlsxResponse(buffer: Buffer, filename: string) {
 //                       ?type=monthly&month=&year=
 //                       ?type=quarterly&quarter=&year=
 export const GET = handle(async (req: NextRequest) => {
-  await requireSuperadmin();
+  const me = await requireAdminOrSuperadmin();
   const sp = new URL(req.url).searchParams;
   const type = sp.get("type");
+
+  const cityId =
+    me.role === "ADMIN"
+      ? (me.cityId ?? undefined)
+      : (sp.get("city") ?? undefined);
 
   if (type === "event") {
     const id = sp.get("id");
     if (!id) return fail("Parameter id wajib diisi", 400);
     const recap = await getEventRecap(id);
     if (!recap) return notFound("Event");
+    // Admin can only export events in their own city.
+    if (me.role === "ADMIN" && recap.event.cityId !== me.cityId) {
+      return forbidden();
+    }
     const buffer = await buildEventWorkbook(recap);
     const filename = `recap_${slugify(recap.event.name)}_${isoDateWIB(
       recap.event.eventDateStart
@@ -53,7 +62,7 @@ export const GET = handle(async (req: NextRequest) => {
       month: sp.get("month"),
       year: sp.get("year"),
     });
-    const recap = await getMonthlyRecap(month, year);
+    const recap = await getMonthlyRecap(month, year, cityId);
     const buffer = await buildPeriodWorkbook(recap);
     const filename = `recap_bulan_${year}-${String(month).padStart(2, "0")}.xlsx`;
     return xlsxResponse(buffer, filename);
@@ -64,7 +73,7 @@ export const GET = handle(async (req: NextRequest) => {
       quarter: sp.get("quarter"),
       year: sp.get("year"),
     });
-    const recap = await getQuarterlyRecap(quarter, year);
+    const recap = await getQuarterlyRecap(quarter, year, cityId);
     const buffer = await buildPeriodWorkbook(recap);
     const filename = `recap_kuartal_${year}-Q${quarter}.xlsx`;
     return xlsxResponse(buffer, filename);

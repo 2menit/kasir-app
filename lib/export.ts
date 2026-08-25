@@ -135,6 +135,7 @@ export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
     { header: "Nama Event", key: "name", width: 32 },
     { header: "Tanggal", key: "date", width: 16 },
     { header: "Lokasi", key: "location", width: 28 },
+    { header: "Kota", key: "city", width: 16 },
     { header: "Skema", key: "scheme", width: 12 },
     { header: "Transaksi", key: "txn", width: 12 },
     { header: "Total Print", key: "prints", width: 12 },
@@ -143,7 +144,7 @@ export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
 
   const titleRow = s1.insertRow(1, [`Rekap ${recap.label}`]);
   titleRow.font = { bold: true, size: 14 };
-  s1.mergeCells(1, 1, 1, 8);
+  s1.mergeCells(1, 1, 1, 9);
   styleHeaderRow(s1.getRow(2));
 
   recap.rows.forEach((r, i) => {
@@ -152,6 +153,7 @@ export async function buildPeriodWorkbook(recap: PeriodRecap): Promise<Buffer> {
       name: r.name,
       date: formatDateWIB(r.eventDateStart),
       location: r.location,
+      city: r.cityName ?? "-",
       scheme: r.pricingType === "PISAH" ? "Pisah" : "Biasa",
       txn: r.transactionCount,
       prints: r.totalPrints,
