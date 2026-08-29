@@ -15,7 +15,10 @@ const name = z
   .min(2, "Nama minimal 2 karakter")
   .max(100, "Nama maksimal 100 karakter");
 
-export const RoleEnum = z.enum(["SUPERADMIN", "USER"]);
+// Role enum — must match Prisma `enum Role` (SUPERADMIN, ADMIN, USER).
+// Frontend only allows selecting ADMIN or USER; SUPERADMIN is reserved
+// (set via seed only) and is filtered out of the role dropdown client-side.
+export const RoleEnum = z.enum(["SUPERADMIN", "ADMIN", "USER"]);
 export const EventStatusEnum = z.enum([
   "UPCOMING",
   "ONGOING",
@@ -33,10 +36,13 @@ export const loginSchema = z.object({
 // ── Users ────────────────────────────────────────────────────────────────────
 // cityId optional on create — superadmin picks the city; admin's cityId is
 // auto-assigned server-side (see app/api/users/route.ts).
+// role optional on create/update — only SUPERADMIN may set ADMIN; an ADMIN
+// creating a crew always gets USER server-side regardless of body.role.
 export const createUserSchema = z.object({
   name,
   username,
   password,
+  role: RoleEnum.optional(),
   cityId: z.string().trim().min(1, "Kota wajib dipilih").optional(),
 });
 
@@ -45,6 +51,8 @@ export const updateUserSchema = z.object({
   username,
   // Optional on edit — only updates when provided/non-empty.
   password: z.union([password, z.literal("")]).optional(),
+  role: RoleEnum.optional(),
+  cityId: z.string().trim().min(1, "Kota wajib dipilih").optional(),
 });
 
 // ── Profile (self password change) ───────────────────────────────────────────

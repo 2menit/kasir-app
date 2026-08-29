@@ -9,8 +9,8 @@ export default async function UsersPage() {
   const me = await getCurrentUser();
   const [users, cities] = await Promise.all([
     prisma.user.findMany({
-      // Superadmin sees all crew across cities
-      where: { role: "USER" },
+      // Superadmin sees all crew + admins across cities
+      where: { role: { in: ["USER", "ADMIN"] } },
       orderBy: { createdAt: "asc" },
       select: {
         id: true,
@@ -44,6 +44,7 @@ export default async function UsersPage() {
     <UsersManager
       initialUsers={rows}
       currentUserId={me!.id}
+      currentUserRole={me!.role}
       cities={cityOptions}
     />
   );

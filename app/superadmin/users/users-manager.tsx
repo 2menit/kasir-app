@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { Role } from "@prisma/client";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ export type UserRow = {
   id: string;
   name: string;
   username: string;
-  role: string;
+  role: Role;
   cityId: string | null;
   cityName: string | null;
   createdAt: string;
@@ -29,20 +30,30 @@ type FormState = {
   name: string;
   username: string;
   password: string;
+  role: Role;
   cityId: string;
 };
 
-const empty: FormState = { name: "", username: "", password: "", cityId: "" };
+const empty: FormState = {
+  name: "",
+  username: "",
+  password: "",
+  role: "USER",
+  cityId: "",
+};
 
 export function UsersManager({
   initialUsers,
   currentUserId,
+  currentUserRole,
   cities,
 }: {
   initialUsers: UserRow[];
   currentUserId: string;
+  currentUserRole: Role;
   cities: CityOption[];
 }) {
+  const isSuperadmin = currentUserRole === "SUPERADMIN";
   const [users, setUsers] = useState(initialUsers);
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -60,7 +71,7 @@ export function UsersManager({
 
   function openCreate() {
     setEditing(null);
-    setForm(empty);
+    setForm({ ...empty, role: "USER" });
     setErrors({});
     setShowForm(true);
   }
@@ -71,6 +82,7 @@ export function UsersManager({
       name: u.name,
       username: u.username,
       password: "",
+      role: u.role,
       cityId: u.cityId ?? "",
     });
     setErrors({});
@@ -158,6 +170,7 @@ export function UsersManager({
             <TR>
               <TH>Nama</TH>
               <TH>Username</TH>
+              <TH>Role</TH>
               <TH>Kota</TH>
               <TH>Dibuat</TH>
               <TH className="text-right">Aksi</TH>
@@ -168,6 +181,15 @@ export function UsersManager({
               <TR key={u.id}>
                 <TD className="font-medium">{u.name}</TD>
                 <TD className="font-mono text-sm">{u.username}</TD>
+                <TD>
+                  {u.role === "ADMIN" ? (
+                    <Badge className="bg-primary/10 text-primary">Admin</Badge>
+                  ) : u.role === "SUPERADMIN" ? (
+                    <Badge className="bg-warn/15 text-warn">Superadmin</Badge>
+                  ) : (
+                    <Badge className="bg-surface-strong text-body">Crew</Badge>
+                  )}
+                </TD>
                 <TD>
                   {u.cityName ? (
                     <Badge>{u.cityName}</Badge>
@@ -185,10 +207,11 @@ export function UsersManager({
                       variant="ghost"
                       onClick={() => openEdit(u)}
                       title="Edit"
+                      disabled={u.role === "SUPERADMIN"}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    {u.id !== currentUserId && (
+                    {u.id !== currentUserId && u.role !== "SUPERADMIN" && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -248,8 +271,31 @@ export function UsersManager({
                   placeholder="••••••••"
                 />
               </Field>
-              {!editing && (
-                <Field label="Kota" error={errors.cityId} required>
+              {isSuperadmin && (
+                <Field label="Role" error={errors.role} required>
+                  <Select
+                    value={form.role}
+                    onChange={(e) =>
+                      setForm({ ...form, role: e.target.value as Role })
+                    }
+                    disabled={editing?.role === "SUPERADMIN"}
+                  >
+                    <option value="USER">Crew (Kasir)</option>
+                    <option value="ADMIN">Admin Cabang</option>
+                  </Select>
+                </Field>
+              )}
+              {!editing || isSuperadmin ? (
+                <Field
+                  label="Kota"
+                  error={errors.cityId}
+                  required={form.role === "ADMIN"}
+                  hint={
+                    form.role === "ADMIN"
+                      ? "Wajib untuk admin cabang."
+                      : "Opsional untuk crew (dapat ditugaskan nanti)."
+                  }
+                >
                   <Select
                     value={form.cityId}
                     onChange={(e) =>
@@ -264,7 +310,7 @@ export function UsersManager({
                     ))}
                   </Select>
                 </Field>
-              )}
+              ) : null}
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"

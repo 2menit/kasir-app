@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ok, fail, notFound, forbidden, handle } from "@/lib/api";
 import { requireAdminOrSuperadmin } from "@/lib/session";
@@ -30,12 +31,34 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
     if (dup) return fail("Username sudah digunakan", 409);
   }
 
-  const data: { name: string; username: string; password?: string } = {
+  const data: {
+    name: string;
+    username: string;
+    password?: string;
+    role?: Role;
+    cityId?: string | null;
+  } = {
     name: body.name,
     username: body.username,
   };
   if (body.password && body.password.length > 0) {
     data.password = await bcrypt.hash(body.password, BCRYPT_ROUNDS);
+  }
+
+  // Role change: only SUPERADMIN may set role, and may not set SUPERADMIN.
+  // ADMIN cannot change anyone's role (silently ignored).
+  // SUPERADMIN may not demote themselves (prevents locking out the only superadmin).
+  if (body.role && me.role === "SUPERADMIN" && body.role !== "SUPERADMIN") {
+    if (me.id === params.id) {
+      return fail("Tidak dapat mengubah role akun sendiri", 400);
+    }
+    data.role = body.role;
+  }
+
+  // City reassignment: only SUPERADMIN may change cityId.
+  // ADMIN cannot change cityId (silently ignored).
+  if (me.role === "SUPERADMIN" && body.cityId !== undefined) {
+    data.cityId = body.cityId || null;
   }
 
   const user = await prisma.user.update({

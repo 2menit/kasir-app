@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ok, fail, handle } from "@/lib/api";
 import { requireAdminOrSuperadmin } from "@/lib/session";
@@ -14,7 +15,7 @@ export const GET = handle(async () => {
   const where =
     me.role === "ADMIN"
       ? { role: "USER" as const, cityId: me.cityId }
-      : { role: "USER" as const };
+      : undefined; // SUPERADMIN sees all users (incl. ADMIN)
 
   const users = await prisma.user.findMany({
     where,
@@ -42,16 +43,33 @@ export const POST = handle(async (req: NextRequest) => {
   });
   if (existing) return fail("Username sudah digunakan", 409);
 
-  // Admin auto-assigns their own cityId; superadmin can supply cityId from body
-  const cityId =
-    me.role === "ADMIN" ? me.cityId : (body.cityId ?? null);
+  // Role resolution:
+  // - ADMIN may only create USER (ignore body.role).
+  // - SUPERADMIN may create ADMIN or USER (default USER when omitted).
+  // - SUPERADMIN can never be created here.
+  const role: Role =
+    me.role === "SUPERADMIN" && body.role === "ADMIN" ? "ADMIN" : "USER";
+
+  // City resolution:
+  // - ADMIN auto-assigns their own cityId.
+  // - SUPERADMIN must supply cityId when creating an ADMIN (enforced),
+  //   optional for USER (may be unassigned).
+  let cityId: string | null;
+  if (me.role === "ADMIN") {
+    cityId = me.cityId;
+  } else {
+    cityId = body.cityId ?? null;
+    if (role === "ADMIN" && !cityId) {
+      return fail("Kota wajib dipilih untuk akun admin", 400);
+    }
+  }
 
   const user = await prisma.user.create({
     data: {
       name: body.name,
       username: body.username,
       password: await bcrypt.hash(body.password, BCRYPT_ROUNDS),
-      role: "USER",
+      role,
       cityId,
     },
     select: { id: true, name: true, username: true, role: true, cityId: true, createdAt: true },
