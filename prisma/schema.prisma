@@ -104,6 +104,9 @@ model EventCrew {
 
 model Transaction {
   id            String        @id @default(cuid())
+  // Idempotency key generated client-side (UUID v4) for offline-sync.
+  // Nullable so legacy/online transactions are unaffected.
+  clientTempId  String?       @unique
   event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId       String
   // Who input it. Nullable so historical transactions survive user deletion (SRS §6.2).

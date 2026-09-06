@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,6 +21,12 @@ export const metadata: Metadata = {
   title: "2Menit Photobooth Kasir",
   description: "Aplikasi kasir & rekap keuangan photobooth.",
   icons: { icon: "/simple-logo-2menit.png" },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "2Menit Kasir",
+  },
 };
 
 export default function RootLayout({
@@ -41,6 +48,7 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegister />
         <Toaster position="top-center" richColors closeButton theme="system" />
       </body>
     </html>

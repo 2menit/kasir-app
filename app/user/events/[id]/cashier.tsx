@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Minus, Plus, Check, CircleCheck } from "lucide-react";
+import { Minus, Plus, Check, CircleCheck, CloudOff, RefreshCw, Cloud } from "lucide-react";
 import type { PaymentMethod } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,16 @@ import { MethodBadge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { apiFetch } from "@/lib/client";
 import { formatRupiah, formatTimeWIB } from "@/lib/format";
-import { computeTotal, computeAddOnTotal } from "@/lib/pricing";
+import { computeTotal, computeAddOnTotal, computeGrandTotal } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import type { PricingType } from "@prisma/client";
+import { useOfflineSync } from "@/lib/use-offline-sync";
+import {
+  enqueueTransaction,
+  getQueueByEvent,
+  generateTempId,
+  type QueuedTransaction,
+} from "@/lib/offline-db";
 
 export type TxnView = {
   id: string;
@@ -25,6 +32,8 @@ export type TxnView = {
   total: number;
   note: string | null;
   crewName: string;
+  /** "synced" = sudah masuk server; "pending" = masih di IndexedDB belum tersinkron */
+  syncStatus?: "synced" | "pending";
 };
 
 export function Cashier({
@@ -56,7 +65,10 @@ export function Cashier({
   initialAttended: boolean;
   initialTransactions: TxnView[];
 }) {
-  const [transactions, setTransactions] = useState<TxnView[]>(initialTransactions);
+  // Mark initial server-fetched transactions as synced.
+  const [transactions, setTransactions] = useState<TxnView[]>(
+    initialTransactions.map((t) => ({ ...t, syncStatus: "synced" as const }))
+  );
   const [printCount, setPrintCount] = useState(1);
   const [addOnQty, setAddOnQty] = useState(0);
   const [copyOnly, setCopyOnly] = useState(false);
@@ -86,6 +98,77 @@ export function Cashier({
   const itemCount = printCount + (addOnActive ? addOnQty : 0);
   const printLabel = copyOnly ? "Salinan" : "Cetak";
 
+  // ── Offline sync hook ────────────────────────────────────────────────
+  // Monitors online/offline, processes the IndexedDB queue when connection
+  // returns, and exposes a manual sync trigger + pending count.
+  const { online, syncStatus, pendingCount, syncNow } = useOfflineSync();
+  const isOnline = online;
+  const isSyncing = syncStatus === "syncing";
+
+  // When a sync completes, flip pending rows to synced in the visible list.
+  // The sync hook calls processQueue() → markSynced() in IndexedDB; we just
+  // mirror the status in the React state for immediate visual feedback.
+  const prevSyncStatus = useRef(syncStatus);
+  useEffect(() => {
+    if (prevSyncStatus.current === "syncing" && syncStatus === "success") {
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.syncStatus === "pending"
+            ? { ...t, syncStatus: "synced" as const }
+            : t
+        )
+      );
+      toast.success("Transaksi berhasil tersinkron");
+    }
+    if (prevSyncStatus.current === "syncing" && syncStatus === "error") {
+      toast.error("Beberapa transaksi gagal terkirim, akan dicoba lagi");
+    }
+    prevSyncStatus.current = syncStatus;
+  }, [syncStatus]);
+
+  // ── Load pending transactions from IndexedDB on mount ────────────────
+  // Merges them with server-fetched transactions so the crew sees their
+  // queued work immediately, even after a page refresh while offline.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pending = await getQueueByEvent(eventId);
+        if (cancelled || pending.length === 0) return;
+        const pendingViews: TxnView[] = pending
+          .filter((p) => p.status !== "synced")
+          .map((p) => {
+            // Re-compute the total client-side for preview only.
+            // The server re-computes on sync (CON-03).
+            const previewTotal = computeGrandTotal(
+              { pricingType, pricePerPrint, copyPrice },
+              p.printCount,
+              { qty: p.addOnQty, unitPrice: p.addOnUnitPrice },
+              { copyOnly: p.copyOnly }
+            );
+            return {
+              id: p.clientTempId,
+              createdAt: p.clientCreatedAt,
+              printCount: p.printCount,
+              paymentMethod: p.paymentMethod,
+              addOnQty: p.addOnQty,
+              total: previewTotal,
+              note: p.note,
+              crewName: "Saya",
+              syncStatus: "pending" as const,
+            };
+          });
+        // Prepend pending txns; keep the 10-newest window (REQ-U-02).
+        setTransactions((prev) => [...pendingViews, ...prev].slice(0, 10));
+      } catch {
+        // IndexedDB might be unavailable (private mode) — silently ignore.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
+
   async function toggleAttendance() {
     setTogglingAttendance(true);
     const next = !attended;
@@ -106,35 +189,144 @@ export function Cashier({
     e.preventDefault();
     if (itemCount < 1) return;
     setSaving(true);
-    const res = await apiFetch<TxnView>("/api/transactions", {
-      method: "POST",
-      body: JSON.stringify({
-        eventId,
-        printCount,
-        paymentMethod: method,
-        addOnQty: addOnActive ? addOnQty : 0,
-        copyOnly: isPisah ? copyOnly : false,
-        note,
-      }),
-    });
-    setSaving(false);
-    if (!res.success) {
-      toast.error(res.error);
+
+    // ── Offline-first: always write to IndexedDB first ────────────────
+    // Compute the total on the client (preview). The server re-computes
+    // the total on sync (CON-03) — this client value is only for the badge.
+    const addOnUnitPrice = addOnActive ? (addOnPrice ?? 0) : 0;
+    const clientTotal = computeGrandTotal(
+      { pricingType, pricePerPrint, copyPrice },
+      printCount,
+      { qty: addOnActive ? addOnQty : 0, unitPrice: addOnUnitPrice },
+      { copyOnly: isPisah ? copyOnly : false }
+    );
+
+    const clientTempId = generateTempId();
+    const clientCreatedAt = new Date().toISOString();
+
+    // enqueueTransaction expects Omit<QueuedTransaction, "status" | "attempts" |
+    // "lastError" | "lastAttemptAt" | "serverId"> — i.e. just the payload fields.
+    const draft = {
+      clientTempId,
+      eventId,
+      printCount,
+      paymentMethod: method,
+      addOnQty: addOnActive ? addOnQty : 0,
+      addOnUnitPrice,
+      copyOnly: isPisah ? copyOnly : false,
+      note: note || null,
+      clientCreatedAt,
+    };
+
+    try {
+      await enqueueTransaction(draft);
+    } catch {
+      // If IndexedDB fails (private mode, quota), fall back to direct API
+      // call so we don't block the crew.
+      setSaving(false);
+      const res = await apiFetch<TxnView>("/api/transactions", {
+        method: "POST",
+        body: JSON.stringify({
+          eventId,
+          printCount,
+          paymentMethod: method,
+          addOnQty: addOnActive ? addOnQty : 0,
+          copyOnly: isPisah ? copyOnly : false,
+          note,
+        }),
+      });
+      if (!res.success) {
+        toast.error(res.error);
+        return;
+      }
+      setTransactions((prev) =>
+        [{ ...res.data, syncStatus: "synced" as const }, ...prev].slice(0, 10)
+      );
+      setLastSaved({ ...res.data, syncStatus: "synced" });
+      resetForm();
+      toast.success("Transaksi tersimpan");
       return;
     }
-    // New transaction appears at the top; keep visible window at 10 (REQ-U-02).
-    setTransactions((prev) => [res.data, ...prev].slice(0, 10));
-    setLastSaved(res.data);
+
+    // Transaction is safely in IndexedDB. Show it immediately with pending badge.
+    const pendingView: TxnView = {
+      id: clientTempId,
+      createdAt: clientCreatedAt,
+      printCount,
+      paymentMethod: method,
+      addOnQty: addOnActive ? addOnQty : 0,
+      total: clientTotal,
+      note: note || null,
+      crewName: "Saya",
+      syncStatus: "pending",
+    };
+    setTransactions((prev) => [pendingView, ...prev].slice(0, 10));
+    setLastSaved(pendingView);
+    setSaving(false);
+
+    resetForm();
+
+    // If online, immediately attempt sync so the badge flips to "synced"
+    // without waiting for the next online event / interval.
+    if (isOnline) {
+      toast.success("Transaksi tersimpan (menyinkron…)");
+      void syncNow();
+    } else {
+      toast.success("Transaksi tersimpan (akan tersinkron saat online)");
+    }
+  }
+
+  function resetForm() {
     setPrintCount(1);
     setAddOnQty(0);
     setCopyOnly(false);
     setNote("");
     setMethod(availableMethods[0] ?? "CASH");
-    toast.success("Transaksi tersimpan");
   }
 
   return (
     <div className="space-y-6">
+      {/* Offline / sync status banner */}
+      {(pendingCount > 0 || !isOnline) && (
+        <Card
+          className={
+            !isOnline
+              ? "border-warn/40 bg-warn/5"
+              : "border-primary/30 bg-primary/5"
+          }
+        >
+          <CardContent className="flex items-center justify-between gap-4 py-3">
+            <div className="flex items-center gap-2">
+              {!isOnline ? (
+                <CloudOff className="h-5 w-5 shrink-0 text-warn" />
+              ) : isSyncing ? (
+                <RefreshCw className="h-5 w-5 shrink-0 animate-spin text-primary" />
+              ) : (
+                <Cloud className="h-5 w-5 shrink-0 text-primary" />
+              )}
+              <p className="text-sm font-medium text-ink">
+                {!isOnline
+                  ? `Mode offline — ${pendingCount} transaksi menunggu sinkronisasi`
+                  : isSyncing
+                    ? "Sedang menyinkronkan transaksi…"
+                    : pendingCount > 0
+                      ? `${pendingCount} transaksi menunggu sinkronisasi`
+                      : "Semua transaksi tersinkron"}
+              </p>
+            </div>
+            {isOnline && pendingCount > 0 && !isSyncing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void syncNow()}
+              >
+                <RefreshCw className="h-4 w-4" /> Sinkronkan
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Self attendance */}
       <Card>
         <CardContent className="flex items-center justify-between gap-4 py-4">
@@ -377,7 +569,11 @@ export function Cashier({
             <div className="flex items-start gap-3">
               <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-up" />
               <div className="flex-1">
-                <p className="font-semibold text-up">Transaksi tersimpan</p>
+                <p className="font-semibold text-up">
+                  {lastSaved.syncStatus === "pending"
+                    ? "Transaksi tersimpan (menunggu sinkronisasi)"
+                    : "Transaksi tersimpan"}
+                </p>
                 <p className="mt-1 text-sm text-body">
                   {lastSaved.printCount} print
                   {lastSaved.addOnQty > 0 && (
@@ -437,7 +633,18 @@ export function Cashier({
                       </TD>
                     )}
                     <TD>
-                      <MethodBadge method={t.paymentMethod} />
+                      <div className="flex items-center gap-2">
+                        <MethodBadge method={t.paymentMethod} />
+                        {t.syncStatus === "pending" && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-warn/30 bg-warn/10 px-2 py-0.5 text-xs font-medium text-warn"
+                            title="Belum tersinkron ke server"
+                          >
+                            <CloudOff className="h-3 w-3" />
+                            Pending
+                          </span>
+                        )}
+                      </div>
                     </TD>
                     <TD className="text-right font-mono tabular-nums">
                       {formatRupiah(t.total)}

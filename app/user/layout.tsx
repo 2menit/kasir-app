@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { AppShell } from "@/components/app-shell";
 import type { NavItem } from "@/components/nav-links";
+import { OfflineBadge } from "@/components/offline-badge";
 
 const nav: NavItem[] = [
   { href: "/user/dashboard", label: "Event Saya" },
@@ -23,6 +24,7 @@ export default async function UserLayout({
       nav={nav}
       profileHref="/user/profile"
     >
+      <OfflineBadge />
       {children}
     </AppShell>
   );
