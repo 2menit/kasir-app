@@ -8,6 +8,8 @@ export default async function DashboardRouter() {
     redirect(
         user.role === "SUPERADMIN"
             ? "/superadmin/dashboard"
-            : "/user/dashboard",
+            : user.role === "ADMIN"
+              ? "/admin/dashboard"
+              : "/user/dashboard",
     );
 }
