@@ -19,13 +19,13 @@ export function ServiceWorkerRegister() {
           scope: "/",
         });
         // Request a background sync registration. The SW's `sync` event
-        // (tag: "flush-transactions") will fire when connectivity returns
+        // (tag: "sync-transactions") will fire when connectivity returns
         // — even after the tab is closed (Chrome/Edge only).
         const syncManager = (reg as unknown as {
           sync?: { register: (tag: string) => Promise<void> };
         }).sync;
         if (syncManager) {
-          await syncManager.register("flush-transactions");
+          await syncManager.register("sync-transactions");
         }
       } catch (err) {
         // SW registration is best-effort; the app still works without it

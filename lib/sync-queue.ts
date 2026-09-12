@@ -103,7 +103,7 @@ export async function processQueue(): Promise<BatchSyncResult> {
       }>;
     }>("/api/transactions/batch", {
       method: "POST",
-      body: JSON.stringify({ items: payload }),
+      body: JSON.stringify({ transactions: payload }),
     });
 
     if (!res.success) {

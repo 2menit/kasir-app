@@ -34,7 +34,12 @@ export function useOfflineSync(): OfflineSyncState {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
-  const initialized = useRef(false);
+  // Refs to avoid stale-closure issues across re-renders and StrictMode
+  // remounts. We keep mutable flags in refs so they survive the
+  // mount→unmount→mount cycle that React.StrictMode triggers in dev.
+  const refreshCountRef = useRef<() => void>(() => {});
+  const runSyncRef = useRef<() => void>(() => {});
+  const isSyncingRef = useRef(false);
 
   // Refresh pending count from IndexedDB.
   const refreshCount = useCallback(async () => {
@@ -48,6 +53,10 @@ export function useOfflineSync(): OfflineSyncState {
 
   // Run a sync attempt and update state accordingly.
   const runSync = useCallback(async () => {
+    // Guard against concurrent sync attempts — also prevents a sync storm
+    // when both the "online" event and the initial-mount sync fire.
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
     setSyncStatus("syncing");
     setLastError(null);
     try {
@@ -70,42 +79,74 @@ export function useOfflineSync(): OfflineSyncState {
     } catch (err) {
       setSyncStatus("error");
       setLastError(err instanceof Error ? err.message : "Sync gagal");
+    } finally {
+      isSyncingRef.current = false;
     }
   }, [refreshCount]);
 
+  // Keep refs in sync so event handlers always call the latest versions.
+  refreshCountRef.current = refreshCount;
+  runSyncRef.current = runSync;
+
   const syncNow = useCallback(() => {
-    void runSync();
-  }, [runSync]);
+    void runSyncRef.current();
+  }, []);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
     setOnline(navigator.onLine);
-    void refreshCount();
+    void refreshCountRef.current();
 
     const handleOnline = () => {
       setOnline(true);
-      void runSync();
+      // Sync immediately when connectivity is restored.
+      void runSyncRef.current();
     };
     const handleOffline = () => {
       setOnline(false);
-      void refreshCount();
+      void refreshCountRef.current();
     };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
+    // 🔑 Listen for messages from the service worker. When Background Sync
+    // fires (tag: "sync-transactions"), the SW broadcasts PROCESS_SYNC_QUEUE
+    // to all open tabs — this is the bridge that makes the SW→hook link work.
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "PROCESS_SYNC_QUEUE") {
+        void runSyncRef.current();
+      }
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleMessage);
+    }
+
     // Poll pending count every 5s — catches cross-tab changes & manual
     // enqueueing from the cashier form without extra wiring.
-    const interval = window.setInterval(refreshCount, 5000);
+    const interval = window.setInterval(() => {
+      void refreshCountRef.current();
+    }, 5000);
+
+    // 🔑 Auto-sync on mount when already online — covers the case where the
+    // app boots (or reconnects) in an online state with pending items but
+    // no `online` event fires. Also handles StrictMode remounts via refs.
+    void (async () => {
+      const isOnline = navigator.onLine;
+      const pending = await countPending().catch(() => 0);
+      if (isOnline && pending > 0) {
+        void runSyncRef.current();
+      }
+    })();
 
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleMessage);
+      }
       window.clearInterval(interval);
     };
-  }, [refreshCount, runSync]);
+  }, []);
 
   return {
     online,
