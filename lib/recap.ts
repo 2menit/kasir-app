@@ -20,6 +20,9 @@ export type EventRecap = {
     addOnPrice: number | null;
     allowCash: boolean;
     allowQris: boolean;
+    splitEnabled: boolean;
+    splitKitaPercent: number;
+    splitPanitiaPercent: number;
     status: EventStatus;
     notes: string | null;
     cityId: string | null;
@@ -97,6 +100,9 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       addOnPrice: event.addOnPrice,
       allowCash: event.allowCash,
       allowQris: event.allowQris,
+      splitEnabled: event.splitEnabled,
+      splitKitaPercent: event.splitKitaPercent,
+      splitPanitiaPercent: event.splitPanitiaPercent,
       status: event.status,
       notes: event.notes,
       cityId: event.cityId,

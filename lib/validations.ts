@@ -95,6 +95,22 @@ const eventBase = {
   // Per-event payment method toggles
   allowCash: z.boolean().optional().default(true),
   allowQris: z.boolean().optional().default(true),
+  // Revenue split (kita vs panitia) — must total 100 when enabled
+  splitEnabled: z.boolean().optional().default(false),
+  splitKitaPercent: z.coerce
+    .number()
+    .int("Persentase harus bilangan bulat")
+    .min(0, "Persentase minimal 0")
+    .max(100, "Persentase maksimal 100")
+    .optional()
+    .default(80),
+  splitPanitiaPercent: z.coerce
+    .number()
+    .int("Persentase harus bilangan bulat")
+    .min(0, "Persentase minimal 0")
+    .max(100, "Persentase maksimal 100")
+    .optional()
+    .default(20),
   notes: z.string().trim().max(1000).optional().or(z.literal("")),
   crewIds: z.array(z.string()).optional().default([]),
   cityId: z.string().min(1, "Kota wajib diisi").optional(),
@@ -159,6 +175,22 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
         path: ["allowCash"],
         message: "Minimal satu metode pembayaran harus aktif",
       });
+    }
+    // Revenue split: when enabled, kita + panitia must total 100
+    const vSplit = val as {
+      splitEnabled?: boolean;
+      splitKitaPercent?: number;
+      splitPanitiaPercent?: number;
+    };
+    if (vSplit.splitEnabled) {
+      const sum = (vSplit.splitKitaPercent ?? 0) + (vSplit.splitPanitiaPercent ?? 0);
+      if (sum !== 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["splitPanitiaPercent"],
+          message: `Total persentase harus 100% (saat ini ${sum}%)`,
+        });
+      }
     }
   });
 }

@@ -19,6 +19,9 @@ export type EventListItem = {
   status: EventStatus;
   cityId: string | null;
   revenue: number;
+  splitEnabled?: boolean;
+  splitKitaPercent?: number;
+  splitPanitiaPercent?: number;
 };
 
 type CityOption = { id: string; name: string };

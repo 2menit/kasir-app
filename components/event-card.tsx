@@ -18,6 +18,9 @@ export type EventCardData = {
   pricingType: PricingType;
   status: EventStatus;
   revenue?: number; // superadmin only
+  splitEnabled?: boolean;
+  splitKitaPercent?: number;
+  splitPanitiaPercent?: number;
 };
 
 export function EventCard({
@@ -43,6 +46,11 @@ export function EventCard({
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge status={event.status} />
             <PricingBadge type={event.pricingType} />
+            {event.splitEnabled && (
+              <span className="inline-flex items-center rounded-pill bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                Bagi Hasil {event.splitKitaPercent}/{event.splitPanitiaPercent}
+              </span>
+            )}
           </div>
           <h3 className="truncate text-lg font-semibold tracking-display">
             {event.name}

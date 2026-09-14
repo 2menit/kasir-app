@@ -171,7 +171,7 @@
 | `seed.ts` | Production seed: superadmin only (dari env vars). |
 | `seed-graph.ts` | Demo seed: events + crew + transactions dengan relationships. |
 | `seed-multi-cabang.ts` | Multi-city demo: 2+ cities dengan admin + crew masing-masing. |
-| `migrations/` | 5 migration folders (lihat AGENTS.md §5). |
+| `migrations/` | 6 migration folders: `0_init`, `event_date_range`, `add_payment_method_toggles`, `add_city_and_admin_role`, `add_client_temp_id`, `add_revenue_split` (lihat AGENTS.md §5). |
 
 ## `types/`
 

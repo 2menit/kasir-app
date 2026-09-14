@@ -76,6 +76,12 @@ model Event {
   // Per-event payment method toggles (superadmin configurable)
   allowCash     Boolean     @default(true)
   allowQris     Boolean     @default(true)
+
+  // Revenue split between "kita" and "panitia" (must total 100 when enabled)
+  splitEnabled       Boolean @default(false)
+  splitKitaPercent   Int     @default(80) // our share (e.g. 80%)
+  splitPanitiaPercent Int    @default(20) // panitia share (e.g. 20%)
+
   status        EventStatus @default(UPCOMING)
   notes         String?
 

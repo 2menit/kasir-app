@@ -31,6 +31,9 @@ export default async function EventsPage() {
     status: e.status,
     cityId: e.cityId,
     revenue: e.transactions.reduce((s, t) => s + t.total, 0),
+    splitEnabled: e.splitEnabled,
+    splitKitaPercent: e.splitKitaPercent,
+    splitPanitiaPercent: e.splitPanitiaPercent,
   }));
 
   return (

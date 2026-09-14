@@ -34,6 +34,9 @@ export type EventFormInitial = {
   addOnPrice: number;
   allowCash: boolean;
   allowQris: boolean;
+  splitEnabled: boolean;
+  splitKitaPercent: number;
+  splitPanitiaPercent: number;
   status: string;
   notes: string;
   crewIds: string[];
@@ -56,6 +59,9 @@ const blank: EventFormInitial = {
   addOnPrice: 5000,
   allowCash: true,
   allowQris: true,
+  splitEnabled: false,
+  splitKitaPercent: 80,
+  splitPanitiaPercent: 20,
   status: "UPCOMING",
   notes: "",
   crewIds: [],
@@ -384,6 +390,80 @@ export function EventForm({
               />
             </label>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Revenue split (kita vs panitia) */}
+      <Card>
+        <CardContent>
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <span>
+              <span className="text-base font-semibold tracking-display">
+                Pembagian Hasil
+              </span>
+              <span className="mt-1 block text-sm text-body">
+                Bagi pendapatan event antara kita dan panitia. Total harus 100%.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={form.splitEnabled}
+              onChange={(e) => set("splitEnabled", e.target.checked)}
+              className="mt-1 h-5 w-5 shrink-0 accent-primary"
+            />
+          </label>
+
+          {form.splitEnabled && (
+            <div className="mt-5 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Porsi Kita (%)"
+                  error={errors.splitKitaPercent}
+                  required
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={form.splitKitaPercent}
+                    onChange={(e) =>
+                      set("splitKitaPercent", Number(e.target.value))
+                    }
+                  />
+                </Field>
+                <Field
+                  label="Porsi Panitia (%)"
+                  error={errors.splitPanitiaPercent}
+                  required
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={form.splitPanitiaPercent}
+                    onChange={(e) =>
+                      set("splitPanitiaPercent", Number(e.target.value))
+                    }
+                  />
+                </Field>
+              </div>
+              {form.splitKitaPercent + form.splitPanitiaPercent !== 100 && (
+                <p className="rounded-md border border-down/30 bg-down/5 px-4 py-2 text-sm font-medium text-down">
+                  Total persentase harus 100% (saat ini{" "}
+                  {form.splitKitaPercent + form.splitPanitiaPercent}%).
+                </p>
+              )}
+              {form.splitKitaPercent + form.splitPanitiaPercent === 100 && (
+                <p className="rounded-md border border-up/30 bg-up/5 px-4 py-2 text-sm font-medium text-up">
+                  ✓ Total 100% — Kita{" "}
+                  {form.splitKitaPercent}% / Panitia{" "}
+                  {form.splitPanitiaPercent}%
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -139,6 +139,37 @@ export default async function EventDetailPage({
                   </dd>
                 </div>
               )}
+              {event.splitEnabled && (
+                <div className="col-span-2 rounded-md border border-hairline bg-surface-soft px-4 py-3">
+                  <dt className="text-muted">
+                    Pembagian Hasil · Kita {event.splitKitaPercent}% / Panitia{" "}
+                    {event.splitPanitiaPercent}%
+                  </dt>
+                  <dd className="mt-2 grid grid-cols-2 gap-2 font-mono font-medium tabular-nums">
+                    <div className="flex items-center justify-between rounded-md bg-canvas px-3 py-2">
+                      <span className="text-sm text-body">Kita</span>
+                      <span className="text-up">
+                        {formatRupiah(
+                          Math.round(
+                            (totals.totalRevenue * event.splitKitaPercent) / 100
+                          )
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-canvas px-3 py-2">
+                      <span className="text-sm text-body">Panitia</span>
+                      <span className="text-primary">
+                        {formatRupiah(
+                          Math.round(
+                            (totals.totalRevenue * event.splitPanitiaPercent) /
+                              100
+                          )
+                        )}
+                      </span>
+                    </div>
+                  </dd>
+                </div>
+              )}
               {event.notes && (
                 <div className="col-span-2">
                   <dt className="text-muted">Catatan</dt>

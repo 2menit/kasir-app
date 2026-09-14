@@ -72,6 +72,9 @@ export const GET = handle(async (req: NextRequest) => {
       transactionCount: e._count.transactions,
       crewCount: e._count.crew,
       cityId: e.cityId,
+      splitEnabled: e.splitEnabled,
+      splitKitaPercent: e.splitKitaPercent,
+      splitPanitiaPercent: e.splitPanitiaPercent,
       ...(revenue !== undefined ? { revenue } : {}),
     };
   });
@@ -108,6 +111,9 @@ export const POST = handle(async (req: NextRequest) => {
       addOnPrice: body.addOnEnabled ? (body.addOnPrice ?? null) : null,
       allowCash: body.allowCash,
       allowQris: body.allowQris,
+      splitEnabled: body.splitEnabled,
+      splitKitaPercent: body.splitEnabled ? body.splitKitaPercent : 80,
+      splitPanitiaPercent: body.splitEnabled ? body.splitPanitiaPercent : 20,
       status: body.status,
       notes: body.notes || null,
       cityId: cityId || null,

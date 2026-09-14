@@ -155,7 +155,8 @@ kasir-app/
 - **City** — representasi cabang/kota (e.g. "Jember", "Jakarta"). Unik by name.
 - **Event** — dengan `eventDateStart`/`eventDateEnd` (date range), `pricingType`
   (BIASA/PISAH), `copyPrice`, add-on fields, `allowCash`/`allowQris` toggles,
-  `cityId`.
+  `cityId`, `splitEnabled`/`splitKitaPercent`/`splitPanitiaPercent` (revenue
+  split antara kita & panitia, default 80/20, hanya aktif jika `splitEnabled=true`).
 - **EventCrew** — junction User ↔ Event dengan `attended` flag.
 - **Transaction** — dengan `clientTempId` (untuk idempotent offline sync),
   `addOnQty`/`addOnUnitPrice` snapshot, `userId` nullable.
@@ -172,6 +173,7 @@ kasir-app/
 3. `20260712053000_add_payment_method_toggles` — `allowCash`, `allowQris`
 4. `20260824222500_add_city_and_admin_role` — City model, `cityId` pada User & Event
 5. `20260830000000_add_client_temp_id` — `clientTempId` untuk offline sync idempotency
+6. `20260915000000_add_revenue_split` — `splitEnabled`, `splitKitaPercent`, `splitPanitiaPercent`
 
 > Setelah ubah `schema.prisma`: `npx prisma migrate dev --name <name>` lalu
 > `npx prisma generate`. Jangan lupa update seed files kalau perlu.

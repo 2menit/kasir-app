@@ -29,6 +29,37 @@ Total commits: 24 (per `2026-09-14`)
 
 ## Changelog (newest first)
 
+### [2026-09-15] feat: revenue split (kita vs panitia) di level event
+
+**Feature:** Setiap event bisa punya skema pembagian hasil antara "kita" dan
+"panitia". Persentase harus total 100%. Nominal rupiah dihitung otomatis dari
+total revenue event.
+**Key decisions:**
+- `splitEnabled` (boolean, default false) — toggle on/off per event.
+- `splitKitaPercent` + `splitPanitiaPercent` (int, default 80/20).
+- Validasi cross-field di Zod: kalau `splitEnabled=true`, sum harus 100.
+- Nominal dihitung di display layer (event detail page), bukan disimpan di DB.
+- Recap (monthly/yearly) tetap 100% total — tidak dihitung dari split.
+**Files:**
+- `prisma/schema.prisma` (3 field baru di Event)
+- `prisma/migrations/20260915000000_add_revenue_split/migration.sql`
+- `lib/validations.ts` (field + superRefine)
+- `lib/recap.ts` (expose split fields di EventRecap type)
+- `app/api/events/route.ts` (create + list response)
+- `app/api/events/[id]/route.ts` (update)
+- `components/forms/event-form.tsx` (UI input persentase + validasi visual)
+- `components/event-card.tsx` (badge "Bagi Hasil 80/20")
+- `app/superadmin/events/[id]/page.tsx` (nominal rupiah kita & panitia)
+- `app/admin/events/[id]/page.tsx` (nominal rupiah kita & panitia)
+- `app/superadmin/events/[id]/edit/page.tsx` (pass split ke initial form)
+- `app/admin/events/[id]/edit/page.tsx` (pass split ke initial form)
+- `app/superadmin/events/page.tsx` + `app/superadmin/events/events-browser.tsx`
+  (pass split ke EventListItem)
+- `app/admin/events/page.tsx` (pass split ke EventListItem)
+**Migration:** `20260915000000_add_revenue_split`
+
+---
+
 ### [2026-09-14] `99e6620` — fix: perbaiki sinkronisasi offline yang tidak pernah berjalan otomatis
 
 **Problem:** Hook `use-offline-sync` tidak auto-trigger sync saat online.
