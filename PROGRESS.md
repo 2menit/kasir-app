@@ -29,6 +29,21 @@ Total commits: 24 (per `2026-09-14`)
 
 ## Changelog (newest first)
 
+### [2026-09-15] fix: field split tidak terkirim ke API saat submit form
+
+**Bug:** Form submit payload tidak include `splitEnabled`, `splitKitaPercent`,
+`splitPanitiaPercent`. Field tersimpan default (false/80/20) terus.
+- Saat edit event, checkbox "Pembagian Hasil" ter-uncheck meski di DB `true`.
+- Detail event tidak menampilkan nominal split.
+**Fix:** Tambah 3 field ke object `payload` di `submit()`.
+**Files:** `components/forms/event-form.tsx`
+**Pitfall:** Saat tambah field baru ke form, selalu update **3 tempat**:
+1. `EventFormInitial` type + `blank` default
+2. UI input section
+3. **Payload object di `submit()`** — yang paling gampang kelupaan.
+
+---
+
 ### [2026-09-15] feat: revenue split (kita vs panitia) di level event
 
 **Feature:** Setiap event bisa punya skema pembagian hasil antara "kita" dan
