@@ -39,6 +39,9 @@ export default async function UserEventPage({
     printCount: t.printCount,
     paymentMethod: t.paymentMethod,
     addOnQty: t.addOnQty,
+    addOnItems: (t.addOnItems as unknown as
+      | { name: string; qty: number; unitPrice: number }[]
+      | null) ?? undefined,
     total: t.total,
     note: t.note,
     crewName: t.user?.name ?? "(dihapus)",
@@ -73,9 +76,11 @@ export default async function UserEventPage({
         pricingType={event.pricingType}
         pricePerPrint={event.pricePerPrint}
         copyPrice={event.copyPrice}
-        addOnEnabled={event.addOnEnabled}
-        addOnName={event.addOnName}
-        addOnPrice={event.addOnPrice}
+        addOns={
+          event.addOns
+            ? (event.addOns as unknown as { name: string; price: number }[])
+            : null
+        }
         allowCash={event.allowCash}
         allowQris={event.allowQris}
         isOngoing={event.status === "ONGOING"}

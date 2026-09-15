@@ -80,9 +80,26 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
         pricePerPrint: body.pricePerPrint,
         copyPrice:
           body.pricingType === "PISAH" ? (body.copyPrice ?? null) : null,
-        addOnEnabled: body.addOnEnabled,
-        addOnName: body.addOnEnabled ? (body.addOnName || "Add-on") : null,
-        addOnPrice: body.addOnEnabled ? (body.addOnPrice ?? null) : null,
+        // Multi add-on (new) — JSON array of { name, price }.
+        addOns: (body.addOns ?? []).filter(
+          (a: { name: string; price: number }) =>
+            a.name.trim().length > 0 && a.price > 0
+        ),
+        // Legacy single add-on fields (mirror first valid row).
+        addOnEnabled: (body.addOns ?? []).some(
+          (a: { name: string; price: number }) =>
+            a.name.trim().length > 0 && a.price > 0
+        ),
+        addOnName:
+          (body.addOns ?? []).find(
+            (a: { name: string; price: number }) =>
+              a.name.trim().length > 0 && a.price > 0
+          )?.name ?? null,
+        addOnPrice:
+          (body.addOns ?? []).find(
+            (a: { name: string; price: number }) =>
+              a.name.trim().length > 0 && a.price > 0
+          )?.price ?? null,
         allowCash: body.allowCash,
         allowQris: body.allowQris,
         splitEnabled: body.splitEnabled,

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -19,6 +20,12 @@ const STATUSES: { value: string; label: string }[] = [
 export type CrewOption = { id: string; name: string };
 export type CityOption = { id: string; name: string };
 
+/** One row in the add-on dynamic list. */
+export type AddOnRow = {
+  name: string;
+  price: number;
+};
+
 export type EventFormInitial = {
   name: string;
   location: string;
@@ -29,9 +36,8 @@ export type EventFormInitial = {
   pricingType: "BIASA" | "PISAH";
   pricePerPrint: number;
   copyPrice: number;
-  addOnEnabled: boolean;
-  addOnName: string;
-  addOnPrice: number;
+  /** Multi add-on list (default: 1 row). Empty rows are dropped on submit. */
+  addOns: AddOnRow[];
   allowCash: boolean;
   allowQris: boolean;
   splitEnabled: boolean;
@@ -54,9 +60,8 @@ const blank: EventFormInitial = {
   pricingType: "BIASA",
   pricePerPrint: 15000,
   copyPrice: 10000,
-  addOnEnabled: false,
-  addOnName: "Gantungan Kunci",
-  addOnPrice: 5000,
+  // Default: 1 empty add-on row so the user can fill it or remove it.
+  addOns: [{ name: "", price: 0 }],
   allowCash: true,
   allowQris: true,
   splitEnabled: false,
@@ -115,6 +120,30 @@ export function EventForm({
     }));
   }
 
+  // ── Add-on dynamic list helpers ──────────────────────────────────────
+  function updateAddOn(index: number, field: "name" | "price", value: string | number) {
+    setForm((f) => ({
+      ...f,
+      addOns: f.addOns.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      ),
+    }));
+  }
+
+  function addAddOnRow() {
+    setForm((f) => ({
+      ...f,
+      addOns: [...f.addOns, { name: "", price: 0 }],
+    }));
+  }
+
+  function removeAddOnRow(index: number) {
+    setForm((f) => ({
+      ...f,
+      addOns: f.addOns.filter((_, i) => i !== index),
+    }));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -130,9 +159,7 @@ export function EventForm({
       pricingType: form.pricingType,
       pricePerPrint: Number(form.pricePerPrint),
       copyPrice: form.pricingType === "PISAH" ? Number(form.copyPrice) : null,
-      addOnEnabled: form.addOnEnabled,
-      addOnName: form.addOnName,
-      addOnPrice: form.addOnEnabled ? Number(form.addOnPrice) : null,
+      addOns: form.addOns,
       allowCash: form.allowCash,
       allowQris: form.allowQris,
       splitEnabled: form.splitEnabled,
@@ -312,49 +339,76 @@ export function EventForm({
         </CardContent>
       </Card>
 
-      {/* Add-on (optional per-event extra item, e.g. gantungan kunci) */}
+      {/* Add-on (optional per-event extra items, e.g. gantungan kunci) */}
       <Card>
         <CardContent>
-          <label className="flex cursor-pointer items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
             <span>
               <span className="text-base font-semibold tracking-display">
                 Add-on
               </span>
               <span className="mt-1 block text-sm text-body">
-                Produk tambahan opsional yang bisa dijual di kasir.
+                Produk tambahan opsional yang bisa dijual di kasir. Kosongkan
+                semua baris untuk menonaktifkan.
               </span>
             </span>
-            <input
-              type="checkbox"
-              checked={form.addOnEnabled}
-              onChange={(e) => set("addOnEnabled", e.target.checked)}
-              className="mt-1 h-5 w-5 shrink-0 accent-primary"
-            />
-          </label>
+          </div>
 
-          {form.addOnEnabled && (
-            <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <Field label="Nama Add-on" error={errors.addOnName} required>
-                <Input
-                  value={form.addOnName}
-                  onChange={(e) => set("addOnName", e.target.value)}
-                  placeholder="Gantungan Kunci"
-                />
-              </Field>
-              <Field
-                label="Harga / item (Rp)"
-                error={errors.addOnPrice}
-                required
-              >
-                <Input
-                  type="number"
-                  min={1000}
-                  step={500}
-                  value={form.addOnPrice}
-                  onChange={(e) => set("addOnPrice", Number(e.target.value))}
-                />
-              </Field>
-            </div>
+          <div className="mt-5 space-y-3">
+            {form.addOns.map((row, i) => (
+              <div key={i} className="flex items-end gap-3">
+                <Field
+                  label={i === 0 ? "Nama Add-on" : undefined}
+                  error={errors[`addOns.${i}.name`]}
+                  className="flex-1"
+                >
+                  <Input
+                    value={row.name}
+                    onChange={(e) => updateAddOn(i, "name", e.target.value)}
+                    placeholder="Gantungan Kunci"
+                  />
+                </Field>
+                <Field
+                  label={i === 0 ? "Harga / item (Rp)" : undefined}
+                  error={errors[`addOns.${i}.price`]}
+                  className="w-36"
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    step={500}
+                    value={row.price}
+                    onChange={(e) =>
+                      updateAddOn(i, "price", Number(e.target.value))
+                    }
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mb-1 aspect-square p-2"
+                  onClick={() => removeAddOnRow(i)}
+                  disabled={form.addOns.length === 1 && i === 0 && !row.name && row.price === 0}
+                  aria-label="Hapus add-on"
+                  title="Hapus add-on"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          {form.addOns.length < 10 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={addAddOnRow}
+            >
+              <Plus className="h-4 w-4" /> Tambah Add-on
+            </Button>
           )}
         </CardContent>
       </Card>

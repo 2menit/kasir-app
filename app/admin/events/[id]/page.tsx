@@ -263,8 +263,12 @@ export default async function AdminEventDetailPage({
                                             {formatNumber(t.printCount)}
                                         </TD>
                                         <TD className="font-mono tabular-nums">
-                                            {t.addOnQty > 0
-                                                ? formatNumber(t.addOnQty)
+                                            {t.addOnItems.length > 0
+                                                ? t.addOnItems.map((a, j) => (
+                                                    <div key={j}>
+                                                      {formatNumber(a.qty)} {a.name}
+                                                    </div>
+                                                  ))
                                                 : "—"}
                                         </TD>
                                         <TD>

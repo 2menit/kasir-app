@@ -78,6 +78,10 @@ export async function processQueue(): Promise<BatchSyncResult> {
       copyOnly: tx.copyOnly,
       addOnQty: tx.addOnQty,
       addOnUnitPrice: tx.addOnUnitPrice,
+      // Don't convert undefined → [] here. The batch route uses
+      // `item.addOnItems === undefined` to detect old clients and apply
+      // the legacy fallback. Sending [] instead of undefined defeats that.
+      ...(tx.addOnItems !== undefined ? { addOnItems: tx.addOnItems } : {}),
       note: tx.note ?? "",
       // Preserve original client-side timestamp so the server sees when the
       // crew actually made the sale (during the offline period), not when
@@ -197,6 +201,8 @@ export async function syncOne(
       copyOnly: tx.copyOnly,
       addOnQty: tx.addOnQty,
       addOnUnitPrice: tx.addOnUnitPrice,
+      // Don't convert undefined → []; let the API detect old clients.
+      ...(tx.addOnItems !== undefined ? { addOnItems: tx.addOnItems } : {}),
       note: tx.note ?? "",
       clientCreatedAt: tx.clientCreatedAt,
     }),

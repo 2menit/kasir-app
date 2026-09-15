@@ -27,8 +27,11 @@ export interface QueuedTransaction {
   eventId: string;
   printCount: number;
   paymentMethod: PaymentMethod;
+  /** Legacy single add-on fields (kept for backward compat with old rows). */
   addOnQty: number;
   addOnUnitPrice: number;
+  /** New multi add-on items — JSON array of { name, qty, unitPrice }. */
+  addOnItems?: { name: string; qty: number; unitPrice: number }[];
   copyOnly: boolean;
   note: string | null;
   /** ISO timestamp captured at the moment of input (WIB-equivalent wall clock). */

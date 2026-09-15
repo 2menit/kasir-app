@@ -88,7 +88,23 @@ const eventBase = {
   pricePerPrint: priceField("Harga"),
   // Required only when pricingType = PISAH (enforced by refine below).
   copyPrice: z.union([priceField("Harga salinan"), z.null()]).optional(),
-  // Optional per-event add-on (e.g. gantungan kunci)
+  // Optional per-event add-ons — JSON array of { name, price }.
+  // Default is a single empty add-on row (the form starts with 1).
+  addOns: z
+    .array(
+      z.object({
+        name: z.string().trim().max(50, "Nama add-on maksimal 50 karakter"),
+        price: z.coerce
+          .number()
+          .int("Harga add-on harus bilangan bulat")
+          .min(0, "Harga add-on minimal Rp0")
+          .max(10_000_000, "Harga add-on maksimal Rp10.000.000"),
+      })
+    )
+    .max(10, "Maksimal 10 add-on per event")
+    .optional(),
+  // Legacy single add-on fields (kept for backward compat with old rows;
+  // new writes use addOns JSON array above).
   addOnEnabled: z.boolean().optional().default(false),
   addOnName: z.string().trim().max(50).optional().or(z.literal("")),
   addOnPrice: z.union([priceField("Harga add-on"), z.null()]).optional(),
@@ -124,9 +140,7 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
       eventDateEnd?: Date;
       pricingType?: string;
       copyPrice?: number | null;
-      addOnEnabled?: boolean;
-      addOnName?: string;
-      addOnPrice?: number | null;
+      addOns?: { name: string; price: number }[];
       startTime?: string;
       endTime?: string;
     };
@@ -144,21 +158,27 @@ function refineEvent<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
         message: "Harga salinan wajib diisi untuk skema Pisah",
       });
     }
-    if (v.addOnEnabled) {
-      if (!v.addOnName || v.addOnName.trim().length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["addOnName"],
-          message: "Nama add-on wajib diisi",
-        });
-      }
-      if (v.addOnPrice == null || v.addOnPrice <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["addOnPrice"],
-          message: "Harga add-on wajib diisi",
-        });
-      }
+    // Validate add-on rows: each non-empty row must have name AND price > 0.
+    // Rows with empty name and 0 price are silently dropped (treated as "no row").
+    if (v.addOns && v.addOns.length > 0) {
+      v.addOns.forEach((row, i) => {
+        const hasName = row.name && row.name.trim().length > 0;
+        const hasPrice = row.price != null && row.price > 0;
+        if (hasName && !hasPrice) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["addOns", i, "price"],
+            message: "Harga add-on wajib diisi",
+          });
+        }
+        if (!hasName && hasPrice) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["addOns", i, "name"],
+            message: "Nama add-on wajib diisi",
+          });
+        }
+      });
     }
     if (v.startTime && v.endTime && v.endTime <= v.startTime) {
       ctx.addIssue({
@@ -217,6 +237,7 @@ export const selfAttendanceSchema = z.object({
 });
 
 // ── Transactions ─────────────────────────────────────────────────────────────
+// Legacy single add-on qty (kept for backward compat with old clients).
 const addOnQty = z
   .coerce.number()
   .int("Jumlah add-on harus bilangan bulat")
@@ -224,6 +245,18 @@ const addOnQty = z
   .max(999)
   .optional()
   .default(0);
+
+// New multi-add-on items — JSON array of { name, qty, unitPrice }.
+const addOnItems = z
+  .array(
+    z.object({
+      name: z.string().trim().max(50),
+      qty: z.coerce.number().int().min(0).max(999),
+      unitPrice: z.coerce.number().int().min(0).max(10_000_000),
+    })
+  )
+  .max(20, "Maksimal 20 add-on per transaksi")
+  .optional();
 
 // printCount may be 0 (e.g. add-on only); the "≥ 1 item" rule is enforced by
 // the refine below (print + add-on must total at least 1).
@@ -238,10 +271,11 @@ const copyOnly = z.boolean().optional().default(false);
 
 // At least one item (print or add-on) must be present.
 function requireAtLeastOneItem(
-  v: { printCount: number; addOnQty?: number },
+  v: { printCount: number; addOnQty?: number; addOnItems?: { qty: number }[] },
   ctx: z.RefinementCtx
 ) {
-  if (v.printCount + (v.addOnQty ?? 0) < 1) {
+  const addOnTotal = (v.addOnItems ?? []).reduce((s, a) => s + a.qty, 0);
+  if (v.printCount + addOnTotal < 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["printCount"],
@@ -256,6 +290,7 @@ export const createTransactionSchema = z
     printCount,
     paymentMethod: PaymentMethodEnum,
     addOnQty,
+    addOnItems,
     copyOnly,
     note: z.string().trim().max(500, "Catatan maksimal 500 karakter").optional().or(z.literal("")),
   })
@@ -266,6 +301,7 @@ export const updateTransactionSchema = z
     printCount,
     paymentMethod: PaymentMethodEnum,
     addOnQty,
+    addOnItems,
     copyOnly,
     note: z.string().trim().max(500).optional().or(z.literal("")),
   })

@@ -127,15 +127,31 @@ export default async function EventDetailPage({
                   </span>
                 </dd>
               </div>
-              {event.addOnEnabled && (
+              {event.addOns.length > 0 && (
                 <div className="col-span-2">
                   <dt className="text-muted">
-                    Add-on · {event.addOnName} (
-                    {formatRupiah(event.addOnPrice ?? 0)}/item)
+                    Add-on ({event.addOns.length} jenis)
                   </dt>
-                  <dd className="font-mono font-medium tabular-nums">
-                    {formatNumber(totals.addOnQty)} item terjual ·{" "}
-                    {formatRupiah(totals.addOnRevenue)}
+                  <dd className="mt-1 space-y-1">
+                    {totals.addOnBreakdown.length > 0 ? (
+                      totals.addOnBreakdown.map((a, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between font-mono text-sm tabular-nums"
+                        >
+                          <span className="text-body">
+                            {a.name} · {formatNumber(a.qty)} item
+                          </span>
+                          <span className="font-medium">
+                            {formatRupiah(a.revenue)}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted">
+                        Belum ada penjualan add-on
+                      </span>
+                    )}
                   </dd>
                 </div>
               )}
@@ -251,8 +267,8 @@ export default async function EventDetailPage({
                   <TH>Waktu</TH>
                   <TH>Crew</TH>
                   <TH className="text-right">Print</TH>
-                  {event.addOnEnabled && (
-                    <TH className="text-right">{event.addOnName}</TH>
+                  {event.addOns.length > 0 && (
+                    <TH className="text-right">Add-on</TH>
                   )}
                   <TH>Metode</TH>
                   <TH className="text-right">Total</TH>
@@ -270,9 +286,15 @@ export default async function EventDetailPage({
                     <TD className="text-right font-mono tabular-nums">
                       {t.printCount}
                     </TD>
-                    {event.addOnEnabled && (
+                    {event.addOns.length > 0 && (
                       <TD className="text-right font-mono tabular-nums">
-                        {t.addOnQty || "—"}
+                        {t.addOnItems.length > 0
+                          ? t.addOnItems.map((a, j) => (
+                              <div key={j}>
+                                {a.qty} {a.name}
+                              </div>
+                            ))
+                          : "—"}
                       </TD>
                     )}
                     <TD>

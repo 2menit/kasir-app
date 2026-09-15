@@ -12,7 +12,8 @@ import { MethodBadge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { apiFetch } from "@/lib/client";
 import { formatRupiah, formatTimeWIB } from "@/lib/format";
-import { computeTotal, computeAddOnTotal, computeGrandTotal } from "@/lib/pricing";
+import { computeTotal, computeAddOnTotal, computeGrandTotal, type AddOnLine } from "@/lib/pricing";
+import { normalizeAddOns, type AddOnRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { PricingType } from "@prisma/client";
 import { useOfflineSync } from "@/lib/use-offline-sync";
@@ -29,6 +30,8 @@ export type TxnView = {
   printCount: number;
   paymentMethod: PaymentMethod;
   addOnQty: number;
+  /** Per-add-on items snapshot (name + qty + unitPrice) for multi add-on display. */
+  addOnItems?: { name: string; qty: number; unitPrice: number }[];
   total: number;
   note: string | null;
   crewName: string;
@@ -41,9 +44,7 @@ export function Cashier({
   pricingType,
   pricePerPrint,
   copyPrice,
-  addOnEnabled,
-  addOnName,
-  addOnPrice,
+  addOns: rawAddOns,
   allowCash,
   allowQris,
   isOngoing,
@@ -55,9 +56,8 @@ export function Cashier({
   pricingType: PricingType;
   pricePerPrint: number;
   copyPrice: number | null;
-  addOnEnabled: boolean;
-  addOnName: string | null;
-  addOnPrice: number | null;
+  /** Multi add-on list from the event (normalized for backward compat). */
+  addOns: AddOnRow[] | null;
   allowCash: boolean;
   allowQris: boolean;
   isOngoing: boolean;
@@ -70,7 +70,8 @@ export function Cashier({
     initialTransactions.map((t) => ({ ...t, syncStatus: "synced" as const }))
   );
   const [printCount, setPrintCount] = useState(1);
-  const [addOnQty, setAddOnQty] = useState(0);
+  // Qty per add-on row (index-aligned with addOns).
+  const [addOnQtys, setAddOnQtys] = useState<number[]>([]);
   const [copyOnly, setCopyOnly] = useState(false);
   const availableMethods: PaymentMethod[] = [
     ...(allowCash ? ["CASH" as PaymentMethod] : []),
@@ -84,18 +85,35 @@ export function Cashier({
   const [attended, setAttended] = useState(initialAttended);
   const [togglingAttendance, setTogglingAttendance] = useState(false);
 
+  // Normalize add-ons (handles legacy single add-on rows from old events).
+  const addOns = normalizeAddOns(rawAddOns);
   const isPisah = pricingType === "PISAH";
-  const addOnActive = addOnEnabled && !!addOnPrice && addOnPrice > 0;
-  const addOnLabel = addOnName || "Add-on";
+
+  // Keep the per-row qty array in sync with the addOns list length.
+  useEffect(() => {
+    setAddOnQtys((prev) => {
+      const next = Array.from({ length: addOns.length }, (_, i) => prev[i] ?? 0);
+      return next;
+    });
+  }, [addOns.length]);
+
   const printsTotal = computeTotal(
     { pricingType, pricePerPrint, copyPrice },
     printCount,
     { copyOnly }
   );
-  const addOnTotal = addOnActive ? computeAddOnTotal(addOnQty, addOnPrice) : 0;
+
+  // Build the active add-on lines (name + qty + unitPrice) for pricing.
+  const addOnLines: AddOnLine[] = addOns
+    .map((a, i) => ({ name: a.name, qty: addOnQtys[i] ?? 0, unitPrice: a.price }))
+    .filter((a) => a.qty > 0);
+  const addOnTotal = addOnLines.reduce(
+    (sum, a) => sum + computeAddOnTotal(a.qty, a.unitPrice),
+    0
+  );
   const total = printsTotal + addOnTotal;
   // A transaction needs at least one item (a print or an add-on).
-  const itemCount = printCount + (addOnActive ? addOnQty : 0);
+  const itemCount = printCount + addOnLines.reduce((s, a) => s + a.qty, 0);
   const printLabel = copyOnly ? "Salinan" : "Cetak";
 
   // ── Offline sync hook ────────────────────────────────────────────────
@@ -143,7 +161,11 @@ export function Cashier({
             const previewTotal = computeGrandTotal(
               { pricingType, pricePerPrint, copyPrice },
               p.printCount,
-              { qty: p.addOnQty, unitPrice: p.addOnUnitPrice },
+              (p.addOnItems ?? []).map((a) => ({
+                name: a.name,
+                qty: a.qty,
+                unitPrice: a.unitPrice,
+              })),
               { copyOnly: p.copyOnly }
             );
             return {
@@ -151,7 +173,7 @@ export function Cashier({
               createdAt: p.clientCreatedAt,
               printCount: p.printCount,
               paymentMethod: p.paymentMethod,
-              addOnQty: p.addOnQty,
+              addOnQty: (p.addOnItems ?? []).reduce((s, a) => s + a.qty, 0),
               total: previewTotal,
               note: p.note,
               crewName: "Saya",
@@ -193,16 +215,22 @@ export function Cashier({
     // ── Offline-first: always write to IndexedDB first ────────────────
     // Compute the total on the client (preview). The server re-computes
     // the total on sync (CON-03) — this client value is only for the badge.
-    const addOnUnitPrice = addOnActive ? (addOnPrice ?? 0) : 0;
     const clientTotal = computeGrandTotal(
       { pricingType, pricePerPrint, copyPrice },
       printCount,
-      { qty: addOnActive ? addOnQty : 0, unitPrice: addOnUnitPrice },
+      addOnLines,
       { copyOnly: isPisah ? copyOnly : false }
     );
 
     const clientTempId = generateTempId();
     const clientCreatedAt = new Date().toISOString();
+
+    // Build the add-on items payload (snapshot name + qty + unitPrice).
+    const addOnItems = addOnLines.map((a) => ({
+      name: a.name,
+      qty: a.qty,
+      unitPrice: a.unitPrice,
+    }));
 
     // enqueueTransaction expects Omit<QueuedTransaction, "status" | "attempts" |
     // "lastError" | "lastAttemptAt" | "serverId"> — i.e. just the payload fields.
@@ -211,8 +239,9 @@ export function Cashier({
       eventId,
       printCount,
       paymentMethod: method,
-      addOnQty: addOnActive ? addOnQty : 0,
-      addOnUnitPrice,
+      addOnQty: addOnLines.reduce((s, a) => s + a.qty, 0),
+      addOnUnitPrice: 0,
+      addOnItems,
       copyOnly: isPisah ? copyOnly : false,
       note: note || null,
       clientCreatedAt,
@@ -230,7 +259,7 @@ export function Cashier({
           eventId,
           printCount,
           paymentMethod: method,
-          addOnQty: addOnActive ? addOnQty : 0,
+          addOnItems,
           copyOnly: isPisah ? copyOnly : false,
           note,
         }),
@@ -254,7 +283,8 @@ export function Cashier({
       createdAt: clientCreatedAt,
       printCount,
       paymentMethod: method,
-      addOnQty: addOnActive ? addOnQty : 0,
+      addOnQty: addOnLines.reduce((s, a) => s + a.qty, 0),
+      addOnItems,
       total: clientTotal,
       note: note || null,
       crewName: "Saya",
@@ -278,10 +308,19 @@ export function Cashier({
 
   function resetForm() {
     setPrintCount(1);
-    setAddOnQty(0);
+    setAddOnQtys(Array.from({ length: addOns.length }, () => 0));
     setCopyOnly(false);
     setNote("");
     setMethod(availableMethods[0] ?? "CASH");
+  }
+
+  // Helper to update qty for a specific add-on row.
+  function setAddOnQty(index: number, value: number) {
+    setAddOnQtys((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
   }
 
   return (
@@ -398,7 +437,7 @@ export function Cashier({
               <Field
                 label={`Jumlah ${isPisah ? printLabel : "Cetak"}`}
                 hint={
-                  addOnActive
+                  addOns.length > 0
                     ? "Boleh 0 jika pelanggan hanya membeli add-on."
                     : undefined
                 }
@@ -439,46 +478,62 @@ export function Cashier({
                 </div>
               </Field>
 
-              {addOnActive && (
-                <Field
-                  label={addOnLabel}
-                  hint={`Add-on · ${formatRupiah(addOnPrice)} / item`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="lg"
-                      className="aspect-square px-0"
-                      onClick={() => setAddOnQty((c) => Math.max(0, c - 1))}
-                      aria-label="Kurangi add-on"
-                    >
-                      <Minus className="h-5 w-5" />
-                    </Button>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={999}
-                      value={addOnQty}
-                      onChange={(e) =>
-                        setAddOnQty(
-                          Math.max(0, Math.min(999, Number(e.target.value) || 0))
-                        )
-                      }
-                      className="h-14 w-24 text-center text-xl font-semibold"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="lg"
-                      className="aspect-square px-0"
-                      onClick={() => setAddOnQty((c) => Math.min(999, c + 1))}
-                      aria-label="Tambah add-on"
-                    >
-                      <Plus className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </Field>
+              {addOns.length > 0 && (
+                <div className="space-y-3">
+                  {addOns.map((a, i) => {
+                    const qty = addOnQtys[i] ?? 0;
+                    return (
+                      <Field
+                        key={i}
+                        label={a.name}
+                        hint={`Add-on · ${formatRupiah(a.price)} / item`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="lg"
+                            className="aspect-square px-0"
+                            onClick={() =>
+                              setAddOnQty(i, Math.max(0, qty - 1))
+                            }
+                            aria-label={`Kurangi ${a.name}`}
+                          >
+                            <Minus className="h-5 w-5" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={999}
+                            value={qty}
+                            onChange={(e) =>
+                              setAddOnQty(
+                                i,
+                                Math.max(
+                                  0,
+                                  Math.min(999, Number(e.target.value) || 0)
+                                )
+                              )
+                            }
+                            className="h-14 w-24 text-center text-xl font-semibold"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="lg"
+                            className="aspect-square px-0"
+                            onClick={() =>
+                              setAddOnQty(i, Math.min(999, qty + 1))
+                            }
+                            aria-label={`Tambah ${a.name}`}
+                          >
+                            <Plus className="h-5 w-5" />
+                          </Button>
+                        </div>
+                      </Field>
+                    );
+                  })}
+                </div>
               )}
 
               <Field label="Metode Pembayaran" required>
@@ -512,7 +567,7 @@ export function Cashier({
               </Field>
 
               <div className="rounded-md bg-surface-soft px-4 py-3">
-                {(addOnActive || isPisah) && (
+                {(addOnLines.length > 0 || isPisah) && (
                   <>
                     <div className="flex items-center justify-between text-sm text-body">
                       <span>
@@ -522,16 +577,19 @@ export function Cashier({
                         {formatRupiah(printsTotal)}
                       </span>
                     </div>
-                    {addOnActive && (
-                      <div className="mt-1 flex items-center justify-between text-sm text-body">
+                    {addOnLines.map((a, i) => (
+                      <div
+                        key={i}
+                        className="mt-1 flex items-center justify-between text-sm text-body"
+                      >
                         <span>
-                          {addOnLabel} ({addOnQty})
+                          {a.name} ({a.qty})
                         </span>
                         <span className="font-mono tabular-nums">
-                          {formatRupiah(addOnTotal)}
+                          {formatRupiah(computeAddOnTotal(a.qty, a.unitPrice))}
                         </span>
                       </div>
-                    )}
+                    ))}
                     <div className="my-2 border-t border-hairline" />
                   </>
                 )}
@@ -579,7 +637,7 @@ export function Cashier({
                   {lastSaved.addOnQty > 0 && (
                     <>
                       {" "}
-                      + {lastSaved.addOnQty} {addOnLabel}
+                      + {lastSaved.addOnQty} add-on
                     </>
                   )}{" "}
                   · {lastSaved.paymentMethod === "CASH" ? "Tunai" : "QRIS"} ·{" "}
@@ -611,7 +669,7 @@ export function Cashier({
                   <TH className="w-10">#</TH>
                   <TH>Waktu</TH>
                   <TH className="text-right">Print</TH>
-                  {addOnActive && <TH className="text-right">{addOnLabel}</TH>}
+                  {addOns.length > 0 && <TH className="text-right">Add-on</TH>}
                   <TH>Metode</TH>
                   <TH className="text-right">Total</TH>
                   <TH>Catatan</TH>
@@ -627,9 +685,17 @@ export function Cashier({
                     <TD className="text-right font-mono tabular-nums">
                       {t.printCount}
                     </TD>
-                    {addOnActive && (
+                    {addOns.length > 0 && (
                       <TD className="text-right font-mono tabular-nums">
-                        {t.addOnQty || "—"}
+                        {t.addOnItems && t.addOnItems.length > 0
+                          ? t.addOnItems.map((a, j) => (
+                              <div key={j}>
+                                {a.qty} {a.name}
+                              </div>
+                            ))
+                          : t.addOnQty > 0
+                            ? t.addOnQty
+                            : "—"}
                       </TD>
                     )}
                     <TD>

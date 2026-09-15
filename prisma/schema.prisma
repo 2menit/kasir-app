@@ -69,7 +69,12 @@ model Event {
   pricingType   PricingType @default(BIASA)
   pricePerPrint Int // base / first-print price (Rp)
   copyPrice     Int? // per same-photo copy price (Rp); used when pricingType = PISAH
-  // Optional per-event add-on (e.g. gantungan kunci)
+  // Optional per-event add-ons (e.g. gantungan kunci) — JSON array of
+  // { name: string, price: number }. New multi-add-on field (replaces the
+  // legacy single addOn* fields below for new writes).
+  addOns        Json?
+  // Legacy single add-on fields (kept for backward compat with old rows;
+  // new writes use addOns JSON array above).
   addOnEnabled  Boolean     @default(false)
   addOnName     String?
   addOnPrice    Int?
@@ -120,7 +125,11 @@ model Transaction {
   userId        String?
   printCount    Int
   paymentMethod PaymentMethod
-  // Add-on sold in this transaction (snapshot unit price for accurate recap)
+  // Add-on items sold in this transaction — JSON array of
+  // { name: string, qty: number, unitPrice: number }. Snapshots the
+  // add-on config at transaction time for accurate recap (new field).
+  addOnItems     Json?
+  // Legacy single add-on snapshot fields (kept for backward compat).
   addOnQty       Int           @default(0)
   addOnUnitPrice Int           @default(0)
   total         Int // (prints + add-on) total in Rp, computed server-side

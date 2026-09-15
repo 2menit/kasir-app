@@ -2,6 +2,7 @@ import type { EventStatus, PaymentMethod, PricingType, Prisma } from "@prisma/cl
 import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
 import { JAKARTA_TZ } from "@/lib/format";
+import { normalizeAddOns, normalizeTxnAddOns, type AddOnItem, type TxnAddOnItem } from "@/lib/types";
 
 export type EventRecap = {
   event: {
@@ -18,6 +19,8 @@ export type EventRecap = {
     addOnEnabled: boolean;
     addOnName: string | null;
     addOnPrice: number | null;
+    /** Multi add-on list (normalized for backward compat). */
+    addOns: AddOnItem[];
     allowCash: boolean;
     allowQris: boolean;
     splitEnabled: boolean;
@@ -36,6 +39,8 @@ export type EventRecap = {
     qrisRevenue: number;
     addOnQty: number;
     addOnRevenue: number;
+    /** Per-add-on breakdown (by name): qty sold + revenue. */
+    addOnBreakdown: { name: string; qty: number; revenue: number }[];
     crewCount: number;
     crewAttended: number;
   };
@@ -47,6 +52,8 @@ export type EventRecap = {
     printCount: number;
     paymentMethod: PaymentMethod;
     addOnQty: number;
+    /** Multi add-on items snapshot for this transaction. */
+    addOnItems: TxnAddOnItem[];
     total: number;
     note: string | null;
   }[];
@@ -74,14 +81,30 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
   let addOnQty = 0;
   let addOnRevenue = 0;
 
+  // Per-add-on breakdown keyed by name (for multi add-on recap).
+  const addOnBreakdownMap = new Map<string, { qty: number; revenue: number }>();
+
   for (const t of event.transactions) {
     totalPrints += t.printCount;
     totalRevenue += t.total;
     if (t.paymentMethod === "CASH") cashRevenue += t.total;
     else qrisRevenue += t.total;
-    addOnQty += t.addOnQty;
-    addOnRevenue += t.addOnQty * t.addOnUnitPrice;
+    // Use the new addOnItems JSON array (with legacy fallback).
+    const items = normalizeTxnAddOns(t, event.addOnName ?? "Add-on");
+    for (const a of items) {
+      addOnQty += a.qty;
+      const lineRevenue = a.qty * a.unitPrice;
+      addOnRevenue += lineRevenue;
+      const entry = addOnBreakdownMap.get(a.name) ?? { qty: 0, revenue: 0 };
+      entry.qty += a.qty;
+      entry.revenue += lineRevenue;
+      addOnBreakdownMap.set(a.name, entry);
+    }
   }
+
+  const addOnBreakdown = Array.from(addOnBreakdownMap.entries())
+    .map(([name, v]) => ({ name, ...v }))
+    .sort((a, b) => b.revenue - a.revenue);
 
   return {
     event: {
@@ -98,6 +121,7 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       addOnEnabled: event.addOnEnabled,
       addOnName: event.addOnName,
       addOnPrice: event.addOnPrice,
+      addOns: normalizeAddOns(event),
       allowCash: event.allowCash,
       allowQris: event.allowQris,
       splitEnabled: event.splitEnabled,
@@ -116,6 +140,7 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       qrisRevenue,
       addOnQty,
       addOnRevenue,
+      addOnBreakdown,
       crewCount: event.crew.length,
       crewAttended: event.crew.filter((c) => c.attended).length,
     },
@@ -131,6 +156,7 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
       printCount: t.printCount,
       paymentMethod: t.paymentMethod,
       addOnQty: t.addOnQty,
+      addOnItems: normalizeTxnAddOns(t, event.addOnName ?? "Add-on"),
       total: t.total,
       note: t.note,
     })),
@@ -260,7 +286,9 @@ async function buildPeriodRecap(
     row.totalRevenue += t.total;
     if (t.paymentMethod === "CASH") row.cashRevenue += t.total;
     else row.qrisRevenue += t.total;
-    row.addOnRevenue += t.addOnQty * t.addOnUnitPrice;
+    // Use new addOnItems JSON (with legacy fallback) for accurate per-item revenue.
+    const items = normalizeTxnAddOns(t);
+    row.addOnRevenue += items.reduce((s, a) => s + a.qty * a.unitPrice, 0);
   }
 
   // Sort rows by eventDateStart asc, then by name for stable ordering.

@@ -49,9 +49,12 @@ export default async function AdminEditEventPage({
     pricingType: event.pricingType,
     pricePerPrint: event.pricePerPrint,
     copyPrice: event.copyPrice ?? 10000,
-    addOnEnabled: event.addOnEnabled,
-    addOnName: event.addOnName ?? "Gantungan Kunci",
-    addOnPrice: event.addOnPrice ?? 5000,
+    addOns:
+      event.addOns
+        ? (event.addOns as unknown as { name: string; price: number }[])
+        : event.addOnEnabled && event.addOnName && event.addOnPrice != null
+          ? [{ name: event.addOnName, price: event.addOnPrice }]
+          : [{ name: "", price: 0 }],
     allowCash: event.allowCash,
     allowQris: event.allowQris,
     splitEnabled: event.splitEnabled,

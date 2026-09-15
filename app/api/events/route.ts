@@ -68,6 +68,7 @@ export const GET = handle(async (req: NextRequest) => {
       endTime: e.endTime,
       pricingType: e.pricingType,
       pricePerPrint: e.pricePerPrint,
+      addOns: e.addOns,
       status: e.status,
       transactionCount: e._count.transactions,
       crewCount: e._count.crew,
@@ -106,9 +107,28 @@ export const POST = handle(async (req: NextRequest) => {
       pricingType: body.pricingType,
       pricePerPrint: body.pricePerPrint,
       copyPrice: body.pricingType === "PISAH" ? (body.copyPrice ?? null) : null,
-      addOnEnabled: body.addOnEnabled,
-      addOnName: body.addOnEnabled ? (body.addOnName || "Add-on") : null,
-      addOnPrice: body.addOnEnabled ? (body.addOnPrice ?? null) : null,
+      // Multi add-on (new) — JSON array of { name, price }.
+      addOns: (body.addOns ?? []).filter(
+        (a: { name: string; price: number }) =>
+          a.name.trim().length > 0 && a.price > 0
+      ),
+      // Legacy single add-on fields (kept for backward compat with old
+      // clients/readers). Mirror the first add-on row so old code that reads
+      // addOnEnabled/addOnName/addOnPrice still works.
+      addOnEnabled: (body.addOns ?? []).some(
+        (a: { name: string; price: number }) =>
+          a.name.trim().length > 0 && a.price > 0
+      ),
+      addOnName:
+        (body.addOns ?? []).find(
+          (a: { name: string; price: number }) =>
+            a.name.trim().length > 0 && a.price > 0
+        )?.name ?? null,
+      addOnPrice:
+        (body.addOns ?? []).find(
+          (a: { name: string; price: number }) =>
+            a.name.trim().length > 0 && a.price > 0
+        )?.price ?? null,
       allowCash: body.allowCash,
       allowQris: body.allowQris,
       splitEnabled: body.splitEnabled,

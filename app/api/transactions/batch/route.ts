@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail, forbidden, notFound, handle } from "@/lib/api";
 import { requireUser } from "@/lib/session";
 import { computeGrandTotal } from "@/lib/pricing";
+import { normalizeAddOns } from "@/lib/types";
 import { z } from "zod";
 import type { PricingType, PaymentMethod } from "@prisma/client";
 
@@ -23,6 +24,17 @@ const batchItemSchema = z.object({
   copyOnly: z.boolean().optional().default(false),
   addOnQty: z.coerce.number().int().min(0).optional().default(0),
   addOnUnitPrice: z.coerce.number().int().min(0).optional().default(0),
+  // New multi add-on items — JSON array of { name, qty, unitPrice }.
+  addOnItems: z
+    .array(
+      z.object({
+        name: z.string().trim().max(50),
+        qty: z.coerce.number().int().min(0).max(999),
+        unitPrice: z.coerce.number().int().min(0).max(10_000_000),
+      })
+    )
+    .max(20)
+    .optional(),
   note: z.string().optional().nullable(),
   clientCreatedAt: z.string().optional(), // ISO string
 });
@@ -42,6 +54,7 @@ type BatchResultItem = {
     printCount: number;
     paymentMethod: PaymentMethod;
     addOnQty: number;
+    addOnItems: unknown;
     total: number;
     note: string | null;
     crewName: string;
@@ -117,6 +130,7 @@ export const POST = handle(async (req: NextRequest) => {
       printCount: true,
       paymentMethod: true,
       addOnQty: true,
+      addOnItems: true,
       total: true,
       note: true,
       userId: true,
@@ -140,6 +154,7 @@ export const POST = handle(async (req: NextRequest) => {
           printCount: prev.printCount,
           paymentMethod: prev.paymentMethod,
           addOnQty: prev.addOnQty,
+          addOnItems: prev.addOnItems,
           total: prev.total,
           note: prev.note,
           crewName: prev.user?.name ?? "(dihapus)",
@@ -194,8 +209,34 @@ export const POST = handle(async (req: NextRequest) => {
     }
 
     // Server is the source of truth for total (CON-03).
-    const addOnQty = event.addOnEnabled ? item.addOnQty : 0;
-    const addOnUnitPrice = event.addOnEnabled ? event.addOnPrice ?? 0 : 0;
+    // Multi add-on: validate each item against the event's config.
+    const eventAddOns = normalizeAddOns(event);
+    const eventAddOnMap = new Map(eventAddOns.map((a) => [a.name, a.price]));
+
+    const addOnItems = (item.addOnItems ?? [])
+      .filter((a) => a.qty > 0)
+      .map((a) => ({
+        name: a.name,
+        qty: a.qty,
+        unitPrice: eventAddOnMap.get(a.name) ?? 0,
+      }))
+      .filter((a) => a.unitPrice > 0);
+
+    // Legacy fallback: ONLY when the client is old (didn't send addOnItems
+    // at all — undefined, not an empty array). This prevents accidentally
+    // using the first add-on when a new client explicitly sends [] (no
+    // add-on selected).
+    const legacyQty = event.addOnEnabled ? item.addOnQty : 0;
+    const legacyUnitPrice = event.addOnEnabled ? event.addOnPrice ?? 0 : 0;
+    if (item.addOnItems === undefined && addOnItems.length === 0 && legacyQty > 0 && legacyUnitPrice > 0) {
+      addOnItems.push({
+        name: event.addOnName ?? "Add-on",
+        qty: legacyQty,
+        unitPrice: legacyUnitPrice,
+      });
+    }
+
+    const totalAddOnQty = addOnItems.reduce((s, a) => s + a.qty, 0);
 
     const total = computeGrandTotal(
       {
@@ -204,7 +245,7 @@ export const POST = handle(async (req: NextRequest) => {
         copyPrice: event.copyPrice,
       },
       item.printCount,
-      { qty: addOnQty, unitPrice: addOnUnitPrice },
+      addOnItems.map((a) => ({ name: a.name, qty: a.qty, unitPrice: a.unitPrice })),
       { copyOnly: item.copyOnly }
     );
 
@@ -222,8 +263,9 @@ export const POST = handle(async (req: NextRequest) => {
           userId: me.id,
           printCount: item.printCount,
           paymentMethod: item.paymentMethod,
-          addOnQty,
-          addOnUnitPrice,
+          addOnQty: totalAddOnQty,
+          addOnUnitPrice: legacyUnitPrice,
+          addOnItems,
           total,
           note: item.note ?? null,
           ...(createdAt ? { createdAt } : {}),
@@ -240,6 +282,7 @@ export const POST = handle(async (req: NextRequest) => {
           printCount: txn.printCount,
           paymentMethod: txn.paymentMethod,
           addOnQty: txn.addOnQty,
+          addOnItems: txn.addOnItems,
           total: txn.total,
           note: txn.note,
           crewName: txn.user?.name ?? me.name,
@@ -263,6 +306,7 @@ export const POST = handle(async (req: NextRequest) => {
             printCount: fallback.printCount,
             paymentMethod: fallback.paymentMethod,
             addOnQty: fallback.addOnQty,
+            addOnItems: fallback.addOnItems,
             total: fallback.total,
             note: fallback.note,
             crewName: fallback.user?.name ?? "(dihapus)",
