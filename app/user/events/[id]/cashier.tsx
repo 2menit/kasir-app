@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Minus, Plus, Check, CircleCheck, CloudOff, RefreshCw, Cloud } from "lucide-react";
+import { Minus, Plus, Check, CircleCheck, CloudOff, RefreshCw, Cloud, X } from "lucide-react";
 import type { PaymentMethod } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,7 @@ export function Cashier({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<TxnView | null>(null);
+  const [showQris, setShowQris] = useState(false);
 
   const [attended, setAttended] = useState(initialAttended);
   const [togglingAttendance, setTogglingAttendance] = useState(false);
@@ -274,6 +275,7 @@ export function Cashier({
       setLastSaved({ ...res.data, syncStatus: "synced" });
       resetForm();
       toast.success("Transaksi tersimpan");
+      if (method === "QRIS") setShowQris(true);
       return;
     }
 
@@ -304,6 +306,7 @@ export function Cashier({
     } else {
       toast.success("Transaksi tersimpan (akan tersinkron saat online)");
     }
+    if (method === "QRIS") setShowQris(true);
   }
 
   function resetForm() {
@@ -725,6 +728,36 @@ export function Cashier({
           )}
         </CardContent>
       </Card>
+
+      {/* Modal QRIS */}
+      {showQris && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setShowQris(false)}
+          role="button"
+          aria-label="Tutup QRIS"
+        >
+          <div
+            className="relative max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowQris(false)}
+              className="absolute -top-3 -right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-black shadow-lg transition-colors hover:bg-gray-200"
+              aria-label="Tutup"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/qris-2menit.jpeg"
+              alt="QRIS 2menit"
+              className="h-auto w-full rounded-lg bg-white object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
