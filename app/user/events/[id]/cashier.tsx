@@ -732,29 +732,57 @@ export function Cashier({
       {/* Modal QRIS */}
       {showQris && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 -p-4"
           onClick={() => setShowQris(false)}
           role="button"
           aria-label="Tutup QRIS"
         >
           <div
-            className="relative max-w-md"
+            className="relative w-full max-w-4xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setShowQris(false)}
-              className="absolute -top-3 -right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white text-black shadow-lg transition-colors hover:bg-gray-200"
+              className="absolute -top-6 -right-6 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-lg transition-colors hover:bg-gray-200"
               aria-label="Tutup"
             >
-              <X className="h-5 w-5" />
+              <X className="h-8 w-8" />
             </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/qris-2menit.jpeg"
-              alt="QRIS 2menit"
-              className="h-auto w-full rounded-lg bg-white object-contain"
-            />
+            <div className="flex gap-10 rounded-[2.5rem] bg-primary p-10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/qris-2menit.jpeg"
+                alt="QRIS 2menit"
+                className="h-96 w-120 shrink-0 rounded-2xl bg-black object-contain"
+              />
+              <div className="flex min-w-0 flex-col justify-between text-white">
+                <div>
+                  <p className="text-xl text-neutral-300">Total</p>
+                  <p className="text-5xl font-bold">
+                    {formatRupiah(lastSaved?.total ?? total)}
+                  </p>
+                </div>
+                <div className="my-5">
+                  <p className="text-xl text-neutral-300">Detail:</p>
+                  <ul className="text-xl">
+                    {(lastSaved?.printCount ?? printCount) > 0 && (
+                      <li>
+                        • {lastSaved?.printCount ?? printCount} {printLabel}
+                      </li>
+                    )}
+                    {(lastSaved?.addOnItems ?? []).map((a, i) => (
+                      <li key={i}>
+                        • {a.qty} {a.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="text-xl text-neutral-400">
+                  {lastSaved ? formatTimeWIB(lastSaved.createdAt) : ""}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
