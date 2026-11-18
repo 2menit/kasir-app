@@ -25,7 +25,8 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(STATIC_CACHE);
       // Best-effort; don't fail install if some assets 404.
-      await Promise.allSettled(STATIC_ASSETS.map((url) => cache.add(url)));
+      // Promise.all + catch instead of allSettled: iOS 12 Safari has no allSettled.
+      await Promise.all(STATIC_ASSETS.map((url) => cache.add(url).catch(() => {})));
       await self.skipWaiting();
     })()
   );

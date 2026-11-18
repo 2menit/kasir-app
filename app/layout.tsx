@@ -37,6 +37,10 @@ export default function RootLayout({
   // Set the theme class before first paint to avoid a flash (FOUC).
   const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
+  // Old Safari (iOS 12) defaults fetch to credentials:"omit", so next-auth's signIn() never keeps
+  // the CSRF/session cookies and login silently bounces. Give fetch the modern default.
+  const fetchCredentialsFix = `(function(){var f=window.fetch;if(!f)return;window.fetch=function(input,init){var isReq=typeof Request!=='undefined'&&input instanceof Request;if(!isReq&&!(init&&init.credentials)){init=Object.assign({},init,{credentials:'same-origin'});}return f.call(this,input,init);};})();`;
+
   return (
     <html
       lang="id"
@@ -44,6 +48,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script dangerouslySetInnerHTML={{ __html: fetchCredentialsFix }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>

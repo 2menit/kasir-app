@@ -29,6 +29,21 @@ Total commits: 24 (per `2026-09-14`)
 
 ## Changelog (newest first)
 
+### [2026-11-16] fix: login tidak bisa di iPad mini 2 (iOS 12 / Safari 12)
+
+**Bug:** Di iOS 12 tombol "Masuk" tidak berfungsi. Chunk login berisi `?.`
+dari `tailwind-merge` (+ `??` dari `date-fns-tz`) → SyntaxError di Safari 12 →
+React tidak hydrate. Next tidak transpile `node_modules` secara default.
+Setelah itu login masih gagal: Safari 12 default `fetch` pakai `credentials:"omit"`,
+jadi cookie CSRF/session next-auth tidak tersimpan → login balik ke /login tanpa error.
+**Fix:** `transpilePackages: ["tailwind-merge","date-fns-tz","date-fns"]` di
+`next.config.mjs`; `Promise.allSettled` di `public/sw.js` diganti (tidak ada di iOS 12);
+inline script ES5 di `app/layout.tsx` yang set default `fetch` ke `credentials:"same-origin"`.
+Terverifikasi di iPad mini 2 (iOS 12.5.7) via repo testing `2menit-kasir-percobaan` (commit `8a5e8bd`).
+**Files:** `next.config.mjs`, `public/sw.js`, `app/layout.tsx`, `types/css.d.ts`
+**Pitfall:** Tambah library client baru → `next build` lalu parse `.next/static/chunks`
+dengan acorn `ecmaVersion: 2019`; kalau gagal, tambahkan package ke `transpilePackages`.
+
 ### [2026-09-15] fix: field split tidak terkirim ke API saat submit form
 
 **Bug:** Form submit payload tidak include `splitEnabled`, `splitKitaPercent`,
