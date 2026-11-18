@@ -2,7 +2,7 @@ import type { EventStatus, PaymentMethod, PricingType, Prisma } from "@prisma/cl
 import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 import { prisma } from "@/lib/prisma";
 import { JAKARTA_TZ } from "@/lib/format";
-import { normalizeAddOns, normalizeTxnAddOns, type AddOnItem, type TxnAddOnItem } from "@/lib/types";
+import { normalizeAddOns, normalizeTxnAddOns, txnPrintCount, type AddOnItem, type TxnAddOnItem } from "@/lib/types";
 
 export type EventRecap = {
   event: {
@@ -85,7 +85,7 @@ export async function getEventRecap(eventId: string): Promise<EventRecap | null>
   const addOnBreakdownMap = new Map<string, { qty: number; revenue: number }>();
 
   for (const t of event.transactions) {
-    totalPrints += t.printCount;
+    totalPrints += txnPrintCount(t);
     totalRevenue += t.total;
     if (t.paymentMethod === "CASH") cashRevenue += t.total;
     else qrisRevenue += t.total;
@@ -282,7 +282,7 @@ async function buildPeriodRecap(
       byEvent.set(e.id, row);
     }
     row.transactionCount += 1;
-    row.totalPrints += t.printCount;
+    row.totalPrints += txnPrintCount(t);
     row.totalRevenue += t.total;
     if (t.paymentMethod === "CASH") row.cashRevenue += t.total;
     else row.qrisRevenue += t.total;
@@ -366,14 +366,14 @@ export async function getMonthlyDashboard(
     ...(cityId ? { cityId } : {}),
   };
 
-  const [agg, eventCountAgg, crewAgg] = await Promise.all([
-    prisma.transaction.aggregate({
+  const [txns, eventCountAgg, crewAgg] = await Promise.all([
+    // findMany (not aggregate): add-on prints live in the addOnItems JSON.
+    prisma.transaction.findMany({
       where: {
         createdAt: { gte: start, lt: end },
         event: { is: eventWhere },
       },
-      _sum: { total: true, printCount: true },
-      _count: true,
+      select: { total: true, printCount: true, addOnItems: true, addOnQty: true, addOnUnitPrice: true },
     }),
     prisma.event.findMany({
       where: {
@@ -395,8 +395,8 @@ export async function getMonthlyDashboard(
   ]);
 
   return {
-    totalPrints: agg._sum.printCount ?? 0,
-    totalRevenue: agg._sum.total ?? 0,
+    totalPrints: txns.reduce((s, t) => s + txnPrintCount(t), 0),
+    totalRevenue: txns.reduce((s, t) => s + t.total, 0),
     eventCount: eventCountAgg.length,
     crewCount: crewAgg.length,
   };

@@ -29,6 +29,24 @@ Total commits: 24 (per `2026-09-14`)
 
 ## Changelog (newest first)
 
+### [2026-11-18] feat: add-on bisa "Hitung sebagai cetak"
+
+**Masalah:** Harga cetak kedua (mis. 4R) dijual sebagai add-on → masuk revenue
+tapi tidak masuk Total Print.
+**Fix:** Flag opsional `countsAsPrint` di tiap add-on event (checkbox di form event).
+Saat transaksi dibuat/diedit/sync, flag di-snapshot ke `Transaction.addOnItems`.
+Total Print = `printCount` + qty add-on yang `countsAsPrint === true` (helper
+`txnPrintCount` di `lib/types.ts`) — dipakai di event recap, period recap, dan dashboard KPI.
+**Tanpa migration** (field di dalam JSON). Data lama tanpa flag = tidak dihitung → angka lama tidak berubah.
+**Files:** `lib/types.ts`, `lib/validations.ts`, `lib/recap.ts`, `components/forms/event-form.tsx`,
+`app/api/transactions/route.ts`, `app/api/transactions/batch/route.ts`, `app/api/transactions/[id]/route.ts`
+**Pitfall:** Jangan hitung Total Print pakai `_sum.printCount` lagi — pakai `txnPrintCount()`.
+**Fix ikutan (`lib/export.ts`):** XLSX dulu cuma tampilkan add-on pertama (baca legacy
+`addOnName`/`addOnPrice`, yang hanya mirror add-on #1). Sekarang Ringkasan tampilkan
+terjual + pendapatan per add-on, sheet Transaksi punya 1 kolom per add-on.
+**Pitfall:** Field legacy `addOnEnabled/addOnName/addOnPrice` = add-on pertama saja.
+Selalu pakai `normalizeAddOns()` / `addOnBreakdown`.
+
 ### [2026-11-16] fix: login tidak bisa di iPad mini 2 (iOS 12 / Safari 12)
 
 **Bug:** Di iOS 12 tombol "Masuk" tidak berfungsi. Chunk login berisi `?.`

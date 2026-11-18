@@ -28,14 +28,15 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
 
   // ── Add-on items (multi add-on) ─────────────────────────────────────
   const eventAddOns = normalizeAddOns(txn.event);
-  const eventAddOnMap = new Map(eventAddOns.map((a) => [a.name, a.price]));
+  const eventAddOnMap = new Map(eventAddOns.map((a) => [a.name, a]));
 
   const addOnItems = (body.addOnItems ?? [])
     .filter((a) => a.qty > 0)
     .map((a) => ({
       name: a.name,
       qty: a.qty,
-      unitPrice: eventAddOnMap.get(a.name) ?? 0,
+      unitPrice: eventAddOnMap.get(a.name)?.price ?? 0,
+      countsAsPrint: eventAddOnMap.get(a.name)?.countsAsPrint === true,
     }))
     .filter((a) => a.unitPrice > 0);
 
@@ -50,6 +51,7 @@ export const PUT = handle(async (req: NextRequest, { params }: Ctx) => {
       name: txn.event.addOnName ?? "Add-on",
       qty: legacyQty,
       unitPrice: legacyUnitPrice,
+      countsAsPrint: false,
     });
   }
 

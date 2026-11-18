@@ -99,6 +99,7 @@ const eventBase = {
           .int("Harga add-on harus bilangan bulat")
           .min(0, "Harga add-on minimal Rp0")
           .max(10_000_000, "Harga add-on maksimal Rp10.000.000"),
+        countsAsPrint: z.boolean().optional(),
       })
     )
     .max(10, "Maksimal 10 add-on per event")

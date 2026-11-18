@@ -24,6 +24,7 @@ export type CityOption = { id: string; name: string };
 export type AddOnRow = {
   name: string;
   price: number;
+  countsAsPrint?: boolean;
 };
 
 export type EventFormInitial = {
@@ -121,7 +122,7 @@ export function EventForm({
   }
 
   // ── Add-on dynamic list helpers ──────────────────────────────────────
-  function updateAddOn(index: number, field: "name" | "price", value: string | number) {
+  function updateAddOn(index: number, field: "name" | "price" | "countsAsPrint", value: string | number | boolean) {
     setForm((f) => ({
       ...f,
       addOns: f.addOns.map((row, i) =>
@@ -356,7 +357,8 @@ export function EventForm({
 
           <div className="mt-5 space-y-3">
             {form.addOns.map((row, i) => (
-              <div key={i} className="flex items-end gap-3">
+              <div key={i} className="space-y-1">
+              <div className="flex items-end gap-3">
                 <Field
                   label={i === 0 ? "Nama Add-on" : undefined}
                   error={errors[`addOns.${i}.name`]}
@@ -395,6 +397,16 @@ export function EventForm({
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-body">
+                <input
+                  type="checkbox"
+                  checked={row.countsAsPrint === true}
+                  onChange={(e) => updateAddOn(i, "countsAsPrint", e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                Hitung sebagai cetak (masuk Total Print)
+              </label>
               </div>
             ))}
           </div>

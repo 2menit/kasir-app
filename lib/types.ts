@@ -6,6 +6,8 @@ import type { Prisma } from "@prisma/client";
 export type AddOnItem = {
   name: string;
   price: number;
+  /** true → each unit sold also counts toward Total Print in recaps. Missing = false (old data). */
+  countsAsPrint?: boolean;
 };
 
 /** Alias used by the event form (UI-facing name). */
@@ -16,7 +18,19 @@ export type TxnAddOnItem = {
   name: string;
   qty: number;
   unitPrice: number;
+  /** Snapshot of the event add-on flag at sale time. Missing = false (old data). */
+  countsAsPrint?: boolean;
 };
+
+/** Prints in one transaction = main prints + qty of add-ons flagged countsAsPrint. */
+export function txnPrintCount(
+  tx: { printCount: number; addOnItems: Prisma.JsonValue | null; addOnQty?: number; addOnUnitPrice?: number }
+): number {
+  return (
+    tx.printCount +
+    normalizeTxnAddOns(tx).reduce((s, a) => s + (a.countsAsPrint === true ? a.qty : 0), 0)
+  );
+}
 
 /**
  * Shape of an event-like object accepted by `normalizeAddOns`.

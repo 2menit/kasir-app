@@ -84,14 +84,15 @@ export const POST = handle(async (req: NextRequest) => {
   // For each accepted item, the server snapshots the unit price from the
   // event (defense-in-depth: never trust client-sent prices).
   const eventAddOns = normalizeAddOns(event);
-  const eventAddOnMap = new Map(eventAddOns.map((a) => [a.name, a.price]));
+  const eventAddOnMap = new Map(eventAddOns.map((a) => [a.name, a]));
 
   const addOnItems = (body.addOnItems ?? [])
     .filter((a) => a.qty > 0)
     .map((a) => ({
       name: a.name,
       qty: a.qty,
-      unitPrice: eventAddOnMap.get(a.name) ?? 0,
+      unitPrice: eventAddOnMap.get(a.name)?.price ?? 0,
+      countsAsPrint: eventAddOnMap.get(a.name)?.countsAsPrint === true,
     }))
     .filter((a) => a.unitPrice > 0); // drop items with unknown name or 0 price
 
@@ -107,6 +108,7 @@ export const POST = handle(async (req: NextRequest) => {
       name: event.addOnName ?? "Add-on",
       qty: legacyQty,
       unitPrice: legacyUnitPrice,
+      countsAsPrint: false,
     });
   }
 
