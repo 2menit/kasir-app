@@ -37,6 +37,10 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
   const { event, totals } = recap;
 
   const timeRange = formatTimeRangeWIB(event.startTime, event.endTime);
+  // All add-ons: current event config + any sold under a name no longer configured.
+  const addOnNames = Array.from(
+    new Set([...event.addOns.map((a) => a.name), ...totals.addOnBreakdown.map((b) => b.name)])
+  );
   const summaryRows: [string, string | number][] = [
     ["Nama Event", event.name],
     ["Tanggal", formatDateRangeWIB(event.eventDateStart, event.eventDateEnd)],
@@ -56,11 +60,17 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
     ["Total Pendapatan", totals.totalRevenue],
     ["Pendapatan Tunai", totals.cashRevenue],
     ["Pendapatan QRIS", totals.qrisRevenue],
-    ...(event.addOnEnabled
+    ...(addOnNames.length > 0
       ? ([
-          ["Add-on", `${event.addOnName} (${event.addOnPrice ?? 0}/item)`],
           ["Add-on Terjual", totals.addOnQty],
           ["Pendapatan Add-on", totals.addOnRevenue],
+          ...addOnNames.flatMap((name) => {
+            const b = totals.addOnBreakdown.find((x) => x.name === name);
+            return [
+              [`${name} (terjual)`, b?.qty ?? 0],
+              [`${name} (pendapatan)`, b?.revenue ?? 0],
+            ];
+          }),
         ] as [string, string | number][])
       : []),
     ["Jumlah Crew", totals.crewCount],
@@ -96,9 +106,7 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
     { header: "Waktu (WIB)", key: "time", width: 22 },
     { header: "Crew", key: "crew", width: 22 },
     { header: "Jumlah Print", key: "prints", width: 14 },
-    ...(recap.event.addOnEnabled
-      ? [{ header: recap.event.addOnName ?? "Add-on", key: "addon", width: 14 }]
-      : []),
+    ...addOnNames.map((name, j) => ({ header: name, key: `addon${j}`, width: 14 })),
     { header: "Metode", key: "method", width: 12 },
     { header: "Total", key: "total", width: 16 },
     { header: "Catatan", key: "note", width: 30 },
@@ -111,7 +119,12 @@ export async function buildEventWorkbook(recap: EventRecap): Promise<Buffer> {
       time: formatDateTimeWIB(t.createdAt),
       crew: t.crewName,
       prints: t.printCount,
-      ...(recap.event.addOnEnabled ? { addon: t.addOnQty } : {}),
+      ...Object.fromEntries(
+        addOnNames.map((name, j) => [
+          `addon${j}`,
+          t.addOnItems.filter((a) => a.name === name).reduce((sum, a) => sum + a.qty, 0),
+        ])
+      ),
       method: methodLabel(t.paymentMethod),
       total: t.total,
       note: t.note ?? "",
